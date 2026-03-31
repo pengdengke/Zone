@@ -23,12 +23,16 @@ struct StatusMenuContent: View {
                 openWindow(id: "settings")
             }
 
-            Button("Pause Monitoring") {
-                model.pauseMonitoring()
-            }
-
-            Button("Resume Monitoring") {
-                model.resumeMonitoring()
+            if model.isMonitoringPaused {
+                Button("Resume Monitoring") {
+                    model.resumeMonitoring()
+                }
+                .disabled(model.settings.selectedDevice == nil)
+            } else {
+                Button("Pause Monitoring") {
+                    model.pauseMonitoring()
+                }
+                .disabled(model.settings.selectedDevice == nil)
             }
 
             Button("Lock Now") {

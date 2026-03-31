@@ -10,9 +10,14 @@ struct DiagnosticsView: View {
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(.secondary)
             } else {
-                List(messages, id: \.self) { message in
-                    Text(message)
-                        .font(.system(.body, design: .monospaced))
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(messages, id: \.self) { message in
+                            Text(message)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
                 }
             }
         }

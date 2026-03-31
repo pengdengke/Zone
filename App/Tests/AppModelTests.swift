@@ -226,4 +226,94 @@ final class AppModelTests: XCTestCase {
         let persistedSettings = settingsStore.load()
         XCTAssertNil(persistedSettings.selectedDevice)
     }
+
+    func testWeakSamplesTriggerSingleLockAction() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let repository = TestBluetoothRepository(
+            connected: [
+                BluetoothDeviceSummary(
+                    stableID: "token",
+                    addressString: "AA-BB",
+                    displayName: "Desk Phone",
+                    majorDeviceClass: 2
+                )
+            ],
+            readings: [
+                "token": [
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96)
+                ]
+            ]
+        )
+        let actions = TestSystemActions()
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: repository,
+            systemActions: actions,
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.refreshConnectedDevices()
+        model.selectConnectedDevice(stableID: "token")
+        model.updateSlidingWindowSize(3)
+
+        for offset in 0 ..< 6 {
+            model.poll(at: Date(timeIntervalSince1970: TimeInterval(offset)))
+        }
+
+        XCTAssertEqual(actions.lockCalls, 1)
+    }
+
+    func testStrongSamplesWakeAfterLockedState() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let repository = TestBluetoothRepository(
+            connected: [
+                BluetoothDeviceSummary(
+                    stableID: "token",
+                    addressString: "AA-BB",
+                    displayName: "Desk Phone",
+                    majorDeviceClass: 2
+                )
+            ],
+            readings: [
+                "token": [
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40)
+                ]
+            ]
+        )
+        let actions = TestSystemActions()
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: repository,
+            systemActions: actions,
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.refreshConnectedDevices()
+        model.selectConnectedDevice(stableID: "token")
+        model.updateSlidingWindowSize(3)
+
+        for offset in 0 ..< 9 {
+            model.poll(at: Date(timeIntervalSince1970: TimeInterval(offset)))
+        }
+
+        XCTAssertEqual(actions.lockCalls, 1)
+        XCTAssertEqual(actions.wakeCalls, 1)
+    }
 }

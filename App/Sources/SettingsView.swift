@@ -28,10 +28,25 @@ struct SettingsView: View {
             }
 
             Section("Thresholds") {
-                Text("Lock below: \(model.settings.lockThreshold) dBm")
-                Text("Wake above: \(model.settings.wakeThreshold) dBm")
-                Text("Signal loss timeout: \(Int(model.settings.signalLossTimeout)) s")
-                Text("Sliding window: \(model.settings.slidingWindowSize)")
+                Stepper("Lock below: \(model.settings.lockThreshold) dBm", value: Binding(
+                    get: { model.settings.lockThreshold },
+                    set: { model.updateLockThreshold($0) }
+                ), in: -100 ... -40)
+
+                Stepper("Wake above: \(model.settings.wakeThreshold) dBm", value: Binding(
+                    get: { model.settings.wakeThreshold },
+                    set: { model.updateWakeThreshold($0) }
+                ), in: -80 ... -20)
+
+                Stepper("Signal loss timeout: \(Int(model.settings.signalLossTimeout)) s", value: Binding(
+                    get: { Int(model.settings.signalLossTimeout) },
+                    set: { model.updateSignalLossTimeout(Double($0)) }
+                ), in: 3 ... 30)
+
+                Stepper("Sliding window: \(model.settings.slidingWindowSize)", value: Binding(
+                    get: { model.settings.slidingWindowSize },
+                    set: { model.updateSlidingWindowSize($0) }
+                ), in: 3 ... 10)
             }
 
             Section("Diagnostics") {
