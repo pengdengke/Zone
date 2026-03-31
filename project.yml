@@ -4,6 +4,9 @@ options:
 configs:
   Debug: debug
   Release: release
+packages:
+  ZoneCore:
+    path: .
 settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: "13.0"
@@ -12,5 +15,7 @@ targets:
     type: application
     platform: macOS
     sources:
-      - Sources/ZoneCore
       - App/Sources
+    dependencies:
+      - package: ZoneCore
+        product: ZoneCore

@@ -3,6 +3,8 @@
 build
 DerivedData
 Zone.xcodeproj
+.worktrees/
 *.xcarchive
 *.dmg
 xcuserdata
+Package.resolved

@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import ZoneCore
 
 @MainActor
 final class AppModel: ObservableObject {
