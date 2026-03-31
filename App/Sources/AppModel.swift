@@ -33,7 +33,7 @@ final class AppModel: ObservableObject {
         let loadedSettings = settingsStore.load()
         self.settings = loadedSettings
         self.boundaryEngine = BoundaryEngine(settings: loadedSettings)
-        self.statusLine = loadedSettings.selectedDevice == nil ? "Not Configured" : "Monitoring Ready"
+        self.statusLine = loadedSettings.selectedDevice == nil ? "Not Configured" : "Monitoring"
         record(.info, "Zone is ready to be configured.")
 
         if loadedSettings.selectedDevice != nil {
@@ -73,7 +73,7 @@ final class AppModel: ObservableObject {
             return
         }
 
-        statusLine = settings.selectedDevice == nil ? "Not Configured" : "Monitoring Ready"
+        statusLine = settings.selectedDevice == nil ? "Not Configured" : "Monitoring"
     }
 
     func selectConnectedDevice(stableID: String) {
@@ -87,7 +87,7 @@ final class AppModel: ObservableObject {
         latestRSSIText = "--"
         boundaryEngine = BoundaryEngine(settings: settings)
         persistSettings()
-        statusLine = "Monitoring Ready"
+        statusLine = "Monitoring"
         record(.info, "Selected device: \(match.displayName)")
         startPolling()
     }

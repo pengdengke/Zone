@@ -64,7 +64,7 @@ struct TestAccessibilityPermission: AccessibilityPermissionProviding {
 
 @MainActor
 final class AppModelTests: XCTestCase {
-    func testInitWithPersistedSelectedDeviceStartsMonitoringReady() async throws {
+    func testInitWithPersistedSelectedDeviceStartsMonitoring() async throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
 
@@ -92,7 +92,7 @@ final class AppModelTests: XCTestCase {
         )
 
         XCTAssertEqual(model.settings.selectedDevice?.stableID, "token")
-        XCTAssertEqual(model.statusLine, "Monitoring Ready")
+        XCTAssertEqual(model.statusLine, "Monitoring")
     }
 
     func testRefreshLoadsConnectedDevicesFromRepository() async throws {
@@ -145,6 +145,7 @@ final class AppModelTests: XCTestCase {
         model.selectConnectedDevice(stableID: "token")
 
         XCTAssertEqual(model.settings.selectedDevice?.displayName, "Desk Phone")
+        XCTAssertEqual(model.statusLine, "Monitoring")
 
         let persistedSettings = settingsStore.load()
         XCTAssertEqual(persistedSettings.selectedDevice?.stableID, "token")
