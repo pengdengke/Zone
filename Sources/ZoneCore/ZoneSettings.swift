@@ -19,6 +19,29 @@ public struct SelectedDevice: Codable, Equatable, Identifiable, Sendable {
         self.displayName = displayName
         self.majorDeviceClass = majorDeviceClass
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case stableID
+        case addressString
+        case displayName
+        case majorDeviceClass
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        stableID = try container.decodeIfPresent(String.self, forKey: .stableID) ?? ""
+        addressString = try container.decodeIfPresent(String.self, forKey: .addressString) ?? ""
+        displayName = try container.decodeIfPresent(String.self, forKey: .displayName) ?? ""
+        majorDeviceClass = try container.decodeIfPresent(UInt32.self, forKey: .majorDeviceClass)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(stableID, forKey: .stableID)
+        try container.encode(addressString, forKey: .addressString)
+        try container.encode(displayName, forKey: .displayName)
+        try container.encodeIfPresent(majorDeviceClass, forKey: .majorDeviceClass)
+    }
 }
 
 public struct ZoneSettings: Codable, Equatable, Sendable {
@@ -43,6 +66,35 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         self.signalLossTimeout = signalLossTimeout
         self.slidingWindowSize = slidingWindowSize
         self.launchAtLogin = launchAtLogin
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case selectedDevice
+        case lockThreshold
+        case wakeThreshold
+        case signalLossTimeout
+        case slidingWindowSize
+        case launchAtLogin
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        selectedDevice = try container.decodeIfPresent(SelectedDevice.self, forKey: .selectedDevice)
+        lockThreshold = try container.decodeIfPresent(Int.self, forKey: .lockThreshold) ?? ZoneSettings.default.lockThreshold
+        wakeThreshold = try container.decodeIfPresent(Int.self, forKey: .wakeThreshold) ?? ZoneSettings.default.wakeThreshold
+        signalLossTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .signalLossTimeout) ?? ZoneSettings.default.signalLossTimeout
+        slidingWindowSize = try container.decodeIfPresent(Int.self, forKey: .slidingWindowSize) ?? ZoneSettings.default.slidingWindowSize
+        launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? ZoneSettings.default.launchAtLogin
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(selectedDevice, forKey: .selectedDevice)
+        try container.encode(lockThreshold, forKey: .lockThreshold)
+        try container.encode(wakeThreshold, forKey: .wakeThreshold)
+        try container.encode(signalLossTimeout, forKey: .signalLossTimeout)
+        try container.encode(slidingWindowSize, forKey: .slidingWindowSize)
+        try container.encode(launchAtLogin, forKey: .launchAtLogin)
     }
 
     public static let `default` = ZoneSettings(

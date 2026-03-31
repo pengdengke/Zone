@@ -30,7 +30,7 @@ public struct DiagnosticsBuffer: Sendable {
     public private(set) var entries: [DiagnosticEntry] = []
 
     public init(capacity: Int = 50) {
-        self.capacity = capacity
+        self.capacity = max(0, capacity)
     }
 
     public mutating func append(
@@ -38,6 +38,11 @@ public struct DiagnosticsBuffer: Sendable {
         message: String,
         at date: Date = Date()
     ) {
+        guard capacity > 0 else {
+            entries.removeAll(keepingCapacity: true)
+            return
+        }
+
         entries.insert(DiagnosticEntry(timestamp: date, level: level, message: message), at: 0)
         if entries.count > capacity {
             entries.removeLast(entries.count - capacity)

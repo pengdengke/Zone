@@ -1,20 +1,17 @@
 import Foundation
-import Testing
+import XCTest
 @testable import ZoneCore
 
-@Suite
-struct ZoneSettingsStoreTests {
-    @Test
-    func storeReturnsDefaultsForEmptySuite() {
+final class ZoneSettingsStoreTests: XCTestCase {
+    func testStoreReturnsDefaultsForEmptySuite() {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
         let store = ZoneSettingsStore(defaults: defaults)
 
-        #expect(store.load() == .default)
+        XCTAssertEqual(store.load(), .default)
     }
 
-    @Test
-    func storePersistsUpdatedSettings() throws {
+    func testStorePersistsUpdatedSettings() throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
         let store = ZoneSettingsStore(defaults: defaults)
@@ -35,6 +32,6 @@ struct ZoneSettingsStoreTests {
 
         try store.save(updated)
 
-        #expect(store.load() == updated)
+        XCTAssertEqual(store.load(), updated)
     }
 }

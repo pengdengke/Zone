@@ -1,23 +1,20 @@
 import Foundation
-import Testing
+import XCTest
 @testable import ZoneCore
 
-@Suite
-struct ZoneSettingsTests {
-    @Test
-    func defaultSettingsMatchApprovedSpec() {
+final class ZoneSettingsTests: XCTestCase {
+    func testDefaultSettingsMatchApprovedSpec() {
         let settings = ZoneSettings.default
 
-        #expect(settings.selectedDevice == nil)
-        #expect(settings.lockThreshold == -85)
-        #expect(settings.wakeThreshold == -55)
-        #expect(settings.signalLossTimeout == 10)
-        #expect(settings.slidingWindowSize == 5)
-        #expect(!settings.launchAtLogin)
+        XCTAssertNil(settings.selectedDevice)
+        XCTAssertEqual(settings.lockThreshold, -85)
+        XCTAssertEqual(settings.wakeThreshold, -55)
+        XCTAssertEqual(settings.signalLossTimeout, 10)
+        XCTAssertEqual(settings.slidingWindowSize, 5)
+        XCTAssertFalse(settings.launchAtLogin)
     }
 
-    @Test
-    func selectedDeviceRoundTripsThroughCodable() throws {
+    func testSelectedDeviceRoundTripsThroughCodable() throws {
         let settings = ZoneSettings(
             selectedDevice: SelectedDevice(
                 stableID: "AA-BB-CC",
@@ -35,6 +32,30 @@ struct ZoneSettingsTests {
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(ZoneSettings.self, from: data)
 
-        #expect(decoded == settings)
+        XCTAssertEqual(decoded, settings)
+    }
+
+    func testIncompletePayloadDecodesWithDefaults() throws {
+        let data = #"""
+        {
+          "selectedDevice": {
+            "stableID": "AA-BB-CC",
+            "addressString": "AA-BB-CC"
+          },
+          "lockThreshold": -81
+        }
+        """#.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(ZoneSettings.self, from: data)
+
+        XCTAssertEqual(decoded.selectedDevice?.stableID, "AA-BB-CC")
+        XCTAssertEqual(decoded.selectedDevice?.addressString, "AA-BB-CC")
+        XCTAssertEqual(decoded.selectedDevice?.displayName, "")
+        XCTAssertNil(decoded.selectedDevice?.majorDeviceClass)
+        XCTAssertEqual(decoded.lockThreshold, -81)
+        XCTAssertEqual(decoded.wakeThreshold, -55)
+        XCTAssertEqual(decoded.signalLossTimeout, 10)
+        XCTAssertEqual(decoded.slidingWindowSize, 5)
+        XCTAssertFalse(decoded.launchAtLogin)
     }
 }

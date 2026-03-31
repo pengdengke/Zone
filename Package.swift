@@ -7,9 +7,6 @@ let package = Package(
     products: [
         .library(name: "ZoneCore", targets: ["ZoneCore"])
     ],
-    dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-testing.git", revision: "48a471a")
-    ],
     targets: [
         .target(
             name: "ZoneCore",
@@ -17,10 +14,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ZoneCoreTests",
-            dependencies: [
-                "ZoneCore",
-                .product(name: "Testing", package: "swift-testing")
-            ],
+            dependencies: ["ZoneCore"],
             path: "Tests/ZoneCoreTests"
         )
     ]
