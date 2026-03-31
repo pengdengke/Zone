@@ -79,7 +79,14 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        if let selectedDevice = try container.decodeIfPresent(SelectedDevice.self, forKey: .selectedDevice),
+        let decodedSelectedDevice: SelectedDevice?
+        do {
+            decodedSelectedDevice = try container.decodeIfPresent(SelectedDevice.self, forKey: .selectedDevice)
+        } catch {
+            decodedSelectedDevice = nil
+        }
+
+        if let selectedDevice = decodedSelectedDevice,
            selectedDevice.stableID.isEmpty == false,
            selectedDevice.addressString.isEmpty == false,
            selectedDevice.displayName.isEmpty == false {

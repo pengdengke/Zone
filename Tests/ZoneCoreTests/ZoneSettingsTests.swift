@@ -55,4 +55,26 @@ final class ZoneSettingsTests: XCTestCase {
         XCTAssertEqual(decoded.slidingWindowSize, 5)
         XCTAssertFalse(decoded.launchAtLogin)
     }
+
+    func testMalformedSelectedDeviceDoesNotResetSiblingSettings() throws {
+        let data = #"""
+        {
+          "selectedDevice": "corrupt",
+          "lockThreshold": -81,
+          "wakeThreshold": -54,
+          "signalLossTimeout": 11,
+          "slidingWindowSize": 6,
+          "launchAtLogin": true
+        }
+        """#.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(ZoneSettings.self, from: data)
+
+        XCTAssertNil(decoded.selectedDevice)
+        XCTAssertEqual(decoded.lockThreshold, -81)
+        XCTAssertEqual(decoded.wakeThreshold, -54)
+        XCTAssertEqual(decoded.signalLossTimeout, 11)
+        XCTAssertEqual(decoded.slidingWindowSize, 6)
+        XCTAssertTrue(decoded.launchAtLogin)
+    }
 }
