@@ -34,7 +34,6 @@ public struct BoundaryTransition: Equatable, Sendable {
 }
 
 public struct BoundaryEngine: Sendable {
-    private let minimumPresenceSamples = 3
     private let lockThreshold: Int
     private let wakeThreshold: Int
     private let signalLossTimeout: TimeInterval
@@ -61,14 +60,25 @@ public struct BoundaryEngine: Sendable {
         let previousState = state
 
         if state == .unknown, samples.count >= minimumPresenceSamples {
-            state = .unlocked
-            return BoundaryTransition(
-                previousState: previousState,
-                newState: state,
-                action: nil,
-                reason: "presence-confirmed",
-                averageRSSI: average
-            )
+            if let average, average < Double(lockThreshold) {
+                state = .locked
+                return BoundaryTransition(
+                    previousState: previousState,
+                    newState: state,
+                    action: .lock,
+                    reason: "weak-signal",
+                    averageRSSI: average
+                )
+            } else {
+                state = .unlocked
+                return BoundaryTransition(
+                    previousState: previousState,
+                    newState: state,
+                    action: nil,
+                    reason: "presence-confirmed",
+                    averageRSSI: average
+                )
+            }
         }
 
         guard let average else { return nil }
@@ -104,6 +114,7 @@ public struct BoundaryEngine: Sendable {
 
         let previousState = state
         state = .locked
+        samples.removeAll(keepingCapacity: true)
         missingSince = date
 
         return BoundaryTransition(
@@ -118,6 +129,10 @@ public struct BoundaryEngine: Sendable {
     public var averageRSSI: Double? {
         guard samples.isEmpty == false else { return nil }
         return Double(samples.reduce(0, +)) / Double(samples.count)
+    }
+
+    private var minimumPresenceSamples: Int {
+        min(3, windowSize)
     }
 
     private mutating func appendSample(_ rssi: Int) {

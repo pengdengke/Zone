@@ -31,6 +31,58 @@ struct BoundaryEngineTests {
     }
 
     @Test
+    func smallWindowsConfirmPresenceWithoutWaitingForThreeSamples() {
+        let base = Date(timeIntervalSince1970: 1_500)
+
+        var oneSampleEngine = BoundaryEngine(
+            settings: ZoneSettings(
+                selectedDevice: nil,
+                lockThreshold: -85,
+                wakeThreshold: -55,
+                signalLossTimeout: 10,
+                slidingWindowSize: 1,
+                launchAtLogin: false
+            )
+        )
+        let oneSampleTransition = oneSampleEngine.ingest(rssi: -60, at: base)
+
+        #expect(oneSampleTransition?.newState == .unlocked)
+        #expect(oneSampleTransition?.reason == "presence-confirmed")
+
+        var twoSampleEngine = BoundaryEngine(
+            settings: ZoneSettings(
+                selectedDevice: nil,
+                lockThreshold: -85,
+                wakeThreshold: -55,
+                signalLossTimeout: 10,
+                slidingWindowSize: 2,
+                launchAtLogin: false
+            )
+        )
+
+        #expect(twoSampleEngine.ingest(rssi: -60, at: base) == nil)
+        let twoSampleTransition = twoSampleEngine.ingest(rssi: -60, at: base.addingTimeInterval(1))
+
+        #expect(twoSampleTransition?.newState == .unlocked)
+        #expect(twoSampleTransition?.reason == "presence-confirmed")
+    }
+
+    @Test
+    func weakStartupAverageLocksImmediately() {
+        var engine = BoundaryEngine(settings: makeSettings())
+        let base = Date(timeIntervalSince1970: 1_800)
+
+        #expect(engine.ingest(rssi: -96, at: base) == nil)
+        #expect(engine.ingest(rssi: -97, at: base.addingTimeInterval(1)) == nil)
+
+        let transition = engine.ingest(rssi: -98, at: base.addingTimeInterval(2))
+
+        #expect(transition?.newState == .locked)
+        #expect(transition?.action == .lock)
+        #expect(transition?.reason == "weak-signal")
+    }
+
+    @Test
     func weakAverageLocksOnlyOnce() {
         var engine = BoundaryEngine(settings: makeSettings())
         let base = Date(timeIntervalSince1970: 2_000)
@@ -88,5 +140,23 @@ struct BoundaryEngineTests {
         #expect(wake?.action == .wakeDisplay)
         #expect(wake?.newState == .unlocked)
         #expect(duplicateWake == nil)
+    }
+
+    @Test
+    func signalLossLockDropsStaleSamplesBeforeEvaluatingWake() {
+        var engine = BoundaryEngine(settings: makeSettings())
+        let base = Date(timeIntervalSince1970: 4_500)
+
+        _ = engine.ingest(rssi: -45, at: base)
+        _ = engine.ingest(rssi: -45, at: base.addingTimeInterval(1))
+        _ = engine.ingest(rssi: -45, at: base.addingTimeInterval(2))
+
+        let lock = engine.noteMissingSignal(at: base.addingTimeInterval(13))
+        let wakeAttempt = engine.ingest(rssi: -70, at: base.addingTimeInterval(14))
+
+        #expect(lock?.action == .lock)
+        #expect(lock?.reason == "signal-lost")
+        #expect(wakeAttempt == nil)
+        #expect(engine.state == .locked)
     }
 }
