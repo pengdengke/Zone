@@ -48,10 +48,7 @@ final class ZoneSettingsTests: XCTestCase {
 
         let decoded = try JSONDecoder().decode(ZoneSettings.self, from: data)
 
-        XCTAssertEqual(decoded.selectedDevice?.stableID, "AA-BB-CC")
-        XCTAssertEqual(decoded.selectedDevice?.addressString, "AA-BB-CC")
-        XCTAssertEqual(decoded.selectedDevice?.displayName, "")
-        XCTAssertNil(decoded.selectedDevice?.majorDeviceClass)
+        XCTAssertNil(decoded.selectedDevice)
         XCTAssertEqual(decoded.lockThreshold, -81)
         XCTAssertEqual(decoded.wakeThreshold, -55)
         XCTAssertEqual(decoded.signalLossTimeout, 10)

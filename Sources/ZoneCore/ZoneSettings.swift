@@ -79,7 +79,14 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        selectedDevice = try container.decodeIfPresent(SelectedDevice.self, forKey: .selectedDevice)
+        if let selectedDevice = try container.decodeIfPresent(SelectedDevice.self, forKey: .selectedDevice),
+           selectedDevice.stableID.isEmpty == false,
+           selectedDevice.addressString.isEmpty == false,
+           selectedDevice.displayName.isEmpty == false {
+            self.selectedDevice = selectedDevice
+        } else {
+            self.selectedDevice = nil
+        }
         lockThreshold = try container.decodeIfPresent(Int.self, forKey: .lockThreshold) ?? ZoneSettings.default.lockThreshold
         wakeThreshold = try container.decodeIfPresent(Int.self, forKey: .wakeThreshold) ?? ZoneSettings.default.wakeThreshold
         signalLossTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .signalLossTimeout) ?? ZoneSettings.default.signalLossTimeout
