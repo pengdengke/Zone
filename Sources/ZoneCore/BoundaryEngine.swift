@@ -60,16 +60,7 @@ public struct BoundaryEngine: Sendable {
         let previousState = state
 
         if state == .unknown, samples.count >= minimumPresenceSamples {
-            if let average, average < Double(lockThreshold) {
-                state = .locked
-                return BoundaryTransition(
-                    previousState: previousState,
-                    newState: state,
-                    action: .lock,
-                    reason: "weak-signal",
-                    averageRSSI: average
-                )
-            } else {
+            if let average, average >= Double(lockThreshold) {
                 state = .unlocked
                 return BoundaryTransition(
                     previousState: previousState,
@@ -79,6 +70,7 @@ public struct BoundaryEngine: Sendable {
                     averageRSSI: average
                 )
             }
+            return nil
         }
 
         guard let average else { return nil }
@@ -109,13 +101,17 @@ public struct BoundaryEngine: Sendable {
     }
 
     public mutating func noteMissingSignal(at date: Date) -> BoundaryTransition? {
-        guard state == .unlocked, let lastSeenAt else { return nil }
-        guard date.timeIntervalSince(lastSeenAt) >= signalLossTimeout else { return nil }
+        if missingSince == nil {
+            missingSince = date
+            return nil
+        }
+
+        guard state == .unlocked, let missingSince else { return nil }
+        guard date.timeIntervalSince(missingSince) >= signalLossTimeout else { return nil }
 
         let previousState = state
         state = .locked
         samples.removeAll(keepingCapacity: true)
-        missingSince = date
 
         return BoundaryTransition(
             previousState: previousState,

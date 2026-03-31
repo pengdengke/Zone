@@ -68,7 +68,7 @@ struct BoundaryEngineTests {
     }
 
     @Test
-    func weakStartupAverageLocksImmediately() {
+    func weakStartupAverageStaysUnknownWithoutLocking() {
         var engine = BoundaryEngine(settings: makeSettings())
         let base = Date(timeIntervalSince1970: 1_800)
 
@@ -77,9 +77,8 @@ struct BoundaryEngineTests {
 
         let transition = engine.ingest(rssi: -98, at: base.addingTimeInterval(2))
 
-        #expect(transition?.newState == .locked)
-        #expect(transition?.action == .lock)
-        #expect(transition?.reason == "weak-signal")
+        #expect(transition == nil)
+        #expect(engine.state == .unknown)
     }
 
     @Test
@@ -111,8 +110,9 @@ struct BoundaryEngineTests {
         _ = engine.ingest(rssi: -62, at: base.addingTimeInterval(2))
 
         #expect(engine.noteMissingSignal(at: base.addingTimeInterval(11)) == nil)
+        #expect(engine.noteMissingSignal(at: base.addingTimeInterval(20)) == nil)
 
-        let transition = engine.noteMissingSignal(at: base.addingTimeInterval(12))
+        let transition = engine.noteMissingSignal(at: base.addingTimeInterval(21))
 
         #expect(transition?.action == .lock)
         #expect(transition?.reason == "signal-lost")
@@ -151,8 +151,11 @@ struct BoundaryEngineTests {
         _ = engine.ingest(rssi: -45, at: base.addingTimeInterval(1))
         _ = engine.ingest(rssi: -45, at: base.addingTimeInterval(2))
 
-        let lock = engine.noteMissingSignal(at: base.addingTimeInterval(13))
-        let wakeAttempt = engine.ingest(rssi: -70, at: base.addingTimeInterval(14))
+        #expect(engine.noteMissingSignal(at: base.addingTimeInterval(13)) == nil)
+        #expect(engine.noteMissingSignal(at: base.addingTimeInterval(20)) == nil)
+
+        let lock = engine.noteMissingSignal(at: base.addingTimeInterval(24))
+        let wakeAttempt = engine.ingest(rssi: -70, at: base.addingTimeInterval(25))
 
         #expect(lock?.action == .lock)
         #expect(lock?.reason == "signal-lost")
