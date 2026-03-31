@@ -13,6 +13,10 @@ struct StatusMenuContent: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            Text("Device: \(model.settings.selectedDevice?.displayName ?? "None")")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             Divider()
 
             Button("Open Settings") {

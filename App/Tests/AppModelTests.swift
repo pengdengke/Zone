@@ -92,8 +92,9 @@ final class AppModelTests: XCTestCase {
     func testSelectingADevicePersistsItIntoSettings() async throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
+        let settingsStore = ZoneSettingsStore(defaults: defaults)
         let model = AppModel(
-            settingsStore: ZoneSettingsStore(defaults: defaults),
+            settingsStore: settingsStore,
             bluetoothRepository: TestBluetoothRepository(
                 connected: [
                     BluetoothDeviceSummary(
@@ -113,5 +114,20 @@ final class AppModelTests: XCTestCase {
         model.selectConnectedDevice(stableID: "token")
 
         XCTAssertEqual(model.settings.selectedDevice?.displayName, "Desk Phone")
+
+        let persistedSettings = settingsStore.load()
+        XCTAssertEqual(persistedSettings.selectedDevice?.stableID, "token")
+        XCTAssertEqual(persistedSettings.selectedDevice?.displayName, "Desk Phone")
+
+        let reloadedModel = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        XCTAssertEqual(reloadedModel.settings.selectedDevice?.stableID, "token")
+        XCTAssertEqual(reloadedModel.settings.selectedDevice?.displayName, "Desk Phone")
     }
 }
