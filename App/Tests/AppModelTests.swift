@@ -64,6 +64,37 @@ struct TestAccessibilityPermission: AccessibilityPermissionProviding {
 
 @MainActor
 final class AppModelTests: XCTestCase {
+    func testInitWithPersistedSelectedDeviceStartsMonitoringReady() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+
+        let persistedSettings = ZoneSettings(
+            selectedDevice: SelectedDevice(
+                stableID: "token",
+                addressString: "AA-BB",
+                displayName: "Desk Phone",
+                majorDeviceClass: 2
+            ),
+            lockThreshold: ZoneSettings.default.lockThreshold,
+            wakeThreshold: ZoneSettings.default.wakeThreshold,
+            signalLossTimeout: ZoneSettings.default.signalLossTimeout,
+            slidingWindowSize: ZoneSettings.default.slidingWindowSize,
+            launchAtLogin: ZoneSettings.default.launchAtLogin
+        )
+        try ZoneSettingsStore(defaults: defaults).save(persistedSettings)
+
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        XCTAssertEqual(model.settings.selectedDevice?.stableID, "token")
+        XCTAssertEqual(model.statusLine, "Monitoring Ready")
+    }
+
     func testRefreshLoadsConnectedDevicesFromRepository() async throws {
         let repository = TestBluetoothRepository(
             connected: [
@@ -129,5 +160,37 @@ final class AppModelTests: XCTestCase {
 
         XCTAssertEqual(reloadedModel.settings.selectedDevice?.stableID, "token")
         XCTAssertEqual(reloadedModel.settings.selectedDevice?.displayName, "Desk Phone")
+    }
+
+    func testClearingSelectedDevicePersistsNilSelection() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = ZoneSettingsStore(defaults: defaults)
+        let model = AppModel(
+            settingsStore: settingsStore,
+            bluetoothRepository: TestBluetoothRepository(
+                connected: [
+                    BluetoothDeviceSummary(
+                        stableID: "token",
+                        addressString: "AA-BB",
+                        displayName: "Desk Phone",
+                        majorDeviceClass: 2
+                    )
+                ]
+            ),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.refreshConnectedDevices()
+        model.selectConnectedDevice(stableID: "token")
+        model.clearSelectedDevice()
+
+        XCTAssertNil(model.settings.selectedDevice)
+        XCTAssertEqual(model.statusLine, "Not Configured")
+
+        let persistedSettings = settingsStore.load()
+        XCTAssertNil(persistedSettings.selectedDevice)
     }
 }

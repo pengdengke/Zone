@@ -29,6 +29,7 @@ final class AppModel: ObservableObject {
         self.loginItemController = loginItemController
         self.accessibilityPermission = accessibilityPermission
         self.settings = settingsStore.load()
+        self.statusLine = self.settings.selectedDevice == nil ? "Not Configured" : "Monitoring Ready"
     }
 
     var menuBarSymbol: String {
@@ -51,6 +52,12 @@ final class AppModel: ObservableObject {
         try? settingsStore.save(settings)
         statusLine = "Monitoring Ready"
         diagnostics.insert("Selected device: \(match.displayName)", at: 0)
+    }
+
+    func clearSelectedDevice() {
+        settings.selectedDevice = nil
+        try? settingsStore.save(settings)
+        statusLine = "Not Configured"
     }
 
     func pauseMonitoring() {

@@ -8,7 +8,13 @@ struct SettingsView: View {
             Section("Connected Device") {
                 Picker("Use this token", selection: Binding(
                     get: { model.settings.selectedDevice?.stableID ?? "" },
-                    set: { model.selectConnectedDevice(stableID: $0) }
+                    set: {
+                        if $0.isEmpty {
+                            model.clearSelectedDevice()
+                        } else {
+                            model.selectConnectedDevice(stableID: $0)
+                        }
+                    }
                 )) {
                     Text("None").tag("")
                     ForEach(model.connectedDevices) { device in
