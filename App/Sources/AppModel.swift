@@ -18,7 +18,7 @@ final class AppModel: ObservableObject {
 
     init(
         settingsStore: ZoneSettingsStore = ZoneSettingsStore(),
-        bluetoothRepository: BluetoothRepository = PreviewBluetoothRepository(),
+        bluetoothRepository: BluetoothRepository = MacBluetoothRepository(),
         systemActions: SystemActionPerforming = PreviewSystemActions(),
         loginItemController: LoginItemControlling = PreviewLoginItemController(),
         accessibilityPermission: AccessibilityPermissionProviding = PreviewAccessibilityPermission()
@@ -38,6 +38,14 @@ final class AppModel: ObservableObject {
 
     func refreshConnectedDevices() {
         connectedDevices = bluetoothRepository.connectedDevices()
+
+        if let selected = settings.selectedDevice,
+           bluetoothRepository.currentReading(for: selected) == nil {
+            statusLine = "Device Unavailable"
+            diagnostics.insert("Selected device is no longer known to macOS.", at: 0)
+            return
+        }
+
         statusLine = settings.selectedDevice == nil ? "Not Configured" : "Monitoring Ready"
     }
 

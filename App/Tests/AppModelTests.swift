@@ -162,6 +162,39 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(reloadedModel.settings.selectedDevice?.displayName, "Desk Phone")
     }
 
+    func testMissingConfiguredDeviceShowsUnavailableStatus() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let store = ZoneSettingsStore(defaults: defaults)
+        try store.save(
+            ZoneSettings(
+                selectedDevice: SelectedDevice(
+                    stableID: "missing",
+                    addressString: "CC-DD",
+                    displayName: "Lost Phone",
+                    majorDeviceClass: 2
+                ),
+                lockThreshold: -85,
+                wakeThreshold: -55,
+                signalLossTimeout: 10,
+                slidingWindowSize: 5,
+                launchAtLogin: false
+            )
+        )
+
+        let model = AppModel(
+            settingsStore: store,
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.refreshConnectedDevices()
+
+        XCTAssertEqual(model.statusLine, "Device Unavailable")
+    }
+
     func testClearingSelectedDevicePersistsNilSelection() async throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
