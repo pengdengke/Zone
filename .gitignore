@@ -1,1 +1,8 @@
-.worktrees/
+.DS_Store
+.build
+build
+DerivedData
+Zone.xcodeproj
+*.xcarchive
+*.dmg
+xcuserdata

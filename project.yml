@@ -1,0 +1,16 @@
+name: Zone
+options:
+  bundleIdPrefix: com.pengdengke
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+targets:
+  Zone:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/ZoneCore
+      - App/Sources
