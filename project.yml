@@ -29,8 +29,26 @@ targets:
     dependencies:
       - package: ZoneCore
         product: ZoneCore
+  ZoneTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - App/Tests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_BUNDLE_IDENTIFIER: com.pengdengke.ZoneTests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Zone.app/Contents/MacOS/Zone"
+    dependencies:
+      - target: Zone
+      - package: ZoneCore
+        product: ZoneCore
 schemes:
   Zone:
     build:
       targets:
         Zone: all
+        ZoneTests: [test]
+    test:
+      targets:
+        - ZoneTests

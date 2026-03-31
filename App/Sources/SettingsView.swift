@@ -6,13 +6,18 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Connected Device") {
-                if model.connectedDevices.isEmpty {
-                    Text("No connected Bluetooth device selected yet.")
-                        .foregroundStyle(.secondary)
-                } else {
+                Picker("Use this token", selection: Binding(
+                    get: { model.settings.selectedDevice?.stableID ?? "" },
+                    set: { model.selectConnectedDevice(stableID: $0) }
+                )) {
+                    Text("None").tag("")
                     ForEach(model.connectedDevices) { device in
-                        Text(device.displayName)
+                        Text(device.displayName).tag(device.stableID)
                     }
+                }
+
+                Button("Refresh Connected Devices") {
+                    model.refreshConnectedDevices()
                 }
             }
 
@@ -28,5 +33,8 @@ struct SettingsView: View {
             }
         }
         .padding(16)
+        .onAppear {
+            model.refreshConnectedDevices()
+        }
     }
 }
