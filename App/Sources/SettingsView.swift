@@ -5,24 +5,14 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Getting Started") {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(model.setupGuideTitle)
-                        .font(.headline)
-                    Text(model.setupGuideMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 4)
-
-                ForEach(model.setupChecklist) { step in
-                    SetupChecklistRow(step: step)
-                }
-
-                if model.isAccessibilityReady == false {
-                    Button("Request Accessibility Access") {
-                        model.requestAccessibilityAccess()
-                    }
+            if let setupBanner = model.setupBanner {
+                Section {
+                    SetupBannerCard(
+                        banner: setupBanner,
+                        showsAccessibilityAction: model.showsAccessibilityAccessButton,
+                        accessibilityActionTitle: model.accessibilityRequestButtonTitle,
+                        requestAccessibilityAccess: model.requestAccessibilityAccess
+                    )
                 }
             }
 
@@ -117,24 +107,36 @@ struct SettingsView: View {
     }
 }
 
-private struct SetupChecklistRow: View {
-    let step: SetupChecklistStep
+private struct SetupBannerCard: View {
+    let banner: SetupBanner
+    let showsAccessibilityAction: Bool
+    let accessibilityActionTitle: String
+    let requestAccessibilityAccess: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: step.isComplete ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(step.isComplete ? .green : .secondary)
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: banner.symbolName)
+                .font(.title3)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
                 .padding(.top, 2)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(step.title)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(banner.title)
                     .fontWeight(.medium)
-                Text(step.detail)
+                Text(banner.message)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if showsAccessibilityAction {
+                    Button(accessibilityActionTitle) {
+                        requestAccessibilityAccess()
+                    }
+                    .controlSize(.small)
+                }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 }

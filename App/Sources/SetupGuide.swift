@@ -1,8 +1,15 @@
 import Foundation
 
-struct SetupChecklistStep: Identifiable, Equatable {
-    let id: String
+struct SetupBanner: Equatable {
+    enum Kind: Equatable {
+        case bluetoothPermission
+        case accessibilityPermission
+        case deviceSelection
+        case signal
+    }
+
+    let kind: Kind
     let title: String
-    let detail: String
-    let isComplete: Bool
+    let message: String
+    let symbolName: String
 }

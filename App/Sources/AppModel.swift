@@ -78,60 +78,52 @@ final class AppModel: ObservableObject {
         accessibilityPermission.isTrusted
     }
 
-    var setupChecklist: [SetupChecklistStep] {
-        let deviceName = settings.selectedDevice?.displayName ?? "your trusted device"
-
-        return [
-            SetupChecklistStep(
-                id: "bluetooth",
-                title: "Allow Bluetooth access",
-                detail: isBluetoothAccessReady
-                    ? "Bluetooth access is allowed."
-                    : "Allow Bluetooth when macOS asks so Zone can read connected devices and signal strength.",
-                isComplete: isBluetoothAccessReady
-            ),
-            SetupChecklistStep(
-                id: "accessibility",
-                title: "Allow Accessibility access",
-                detail: isAccessibilityReady
-                    ? "Accessibility is allowed. Lock Now and automatic locking can work."
-                    : "Open System Settings > Privacy & Security > Accessibility and allow Zone so it can lock your screen.",
-                isComplete: isAccessibilityReady
-            ),
-            SetupChecklistStep(
-                id: "device",
-                title: "Choose a trusted device",
-                detail: settings.selectedDevice == nil
-                    ? "Connect your phone or another Bluetooth token in macOS first, then choose it below."
-                    : "Using \(deviceName) as your trusted device.",
-                isComplete: settings.selectedDevice != nil
-            ),
-            SetupChecklistStep(
-                id: "signal",
-                title: "Confirm live signal",
-                detail: setupSignalDetail(deviceName: deviceName),
-                isComplete: latestRSSIText != "--"
+    var setupBanner: SetupBanner? {
+        if isBluetoothAccessReady == false {
+            return SetupBanner(
+                kind: .bluetoothPermission,
+                title: "Allow Bluetooth Access",
+                message: "Allow Bluetooth when macOS asks so Zone can read connected devices and signal strength.",
+                symbolName: "dot.radiowaves.left.and.right"
             )
-        ]
-    }
-
-    var setupGuideTitle: String {
-        let remainingSteps = setupChecklist.filter { $0.isComplete == false }.count
-        if remainingSteps == 0 {
-            return "Setup complete"
         }
 
-        let stepLabel = remainingSteps == 1 ? "step" : "steps"
-        return "Finish setup in \(remainingSteps) \(stepLabel)"
-    }
-
-    var setupGuideMessage: String {
-        if let nextStep = setupChecklist.first(where: { $0.isComplete == false }) {
-            return nextStep.detail
+        if isAccessibilityReady == false {
+            return SetupBanner(
+                kind: .accessibilityPermission,
+                title: "Allow Accessibility Access",
+                message: "Open System Settings > Privacy & Security > Accessibility and allow Zone so it can lock your screen.",
+                symbolName: "hand.raised"
+            )
         }
 
-        let deviceName = settings.selectedDevice?.displayName ?? "your trusted device"
-        return "Zone is monitoring \(deviceName). Auto-lock is ready, and wake-on-return will be attempted when macOS reconnects the device."
+        guard let deviceName = settings.selectedDevice?.displayName else {
+            return SetupBanner(
+                kind: .deviceSelection,
+                title: "Choose a Trusted Device",
+                message: "Connect your phone or another Bluetooth token in macOS first, then choose it below.",
+                symbolName: "iphone.gen3.radiowaves.left.and.right"
+            )
+        }
+
+        guard latestRSSIText == "--" else {
+            return nil
+        }
+
+        return SetupBanner(
+            kind: .signal,
+            title: "Waiting for Live Signal",
+            message: "Keep \(deviceName) connected and nearby until Zone shows a negative RSSI value. If it stays --, reconnect the device or pick another connected device.",
+            symbolName: "waveform.badge.magnifyingglass"
+        )
+    }
+
+    var showsAccessibilityAccessButton: Bool {
+        setupBanner?.kind == .accessibilityPermission
+    }
+
+    var accessibilityRequestButtonTitle: String {
+        "Request Accessibility Access"
     }
 
     func refreshConnectedDevices() {
