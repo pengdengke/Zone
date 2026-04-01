@@ -57,6 +57,23 @@ final class TestLoginItemController: LoginItemControlling {
     var statusText: String { "Enabled" }
 }
 
+enum TestLoginItemControllerError: Error, CustomStringConvertible {
+    case approvalRequired
+
+    var description: String { "approval required" }
+}
+
+final class ThrowingLoginItemController: LoginItemControlling {
+    private(set) var lastEnabledValue: Bool?
+
+    func setEnabled(_ enabled: Bool) throws {
+        lastEnabledValue = enabled
+        throw TestLoginItemControllerError.approvalRequired
+    }
+
+    var statusText: String { "Requires Approval" }
+}
+
 enum TestSettingsStoreError: Error, CustomStringConvertible {
     case saveFailed
 
@@ -290,9 +307,30 @@ final class AppModelTests: XCTestCase {
 
         model.setLaunchAtLogin(true)
 
-        XCTAssertTrue(loginItem.lastEnabledValue == true)
+        XCTAssertNil(loginItem.lastEnabledValue)
         XCTAssertFalse(model.settings.launchAtLogin)
         XCTAssertEqual(model.diagnostics.first, "[ERROR] Login item update failed: save failed")
+    }
+
+    func testLaunchAtLoginPersistsPreferenceWhenServiceNeedsApproval() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = ZoneSettingsStore(defaults: defaults)
+        let loginItem = ThrowingLoginItemController()
+        let model = AppModel(
+            settingsStore: settingsStore,
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: loginItem,
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.setLaunchAtLogin(true)
+
+        XCTAssertTrue(loginItem.lastEnabledValue == true)
+        XCTAssertTrue(model.settings.launchAtLogin)
+        XCTAssertTrue(settingsStore.load().launchAtLogin)
+        XCTAssertEqual(model.diagnostics.first, "[ERROR] Login item update failed: approval required")
     }
 
     func testWeakSamplesTriggerSingleLockAction() async throws {

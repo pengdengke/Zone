@@ -145,9 +145,15 @@ final class AppModel: ObservableObject {
         updatedSettings.launchAtLogin = enabled
 
         do {
-            try loginItemController.setEnabled(enabled)
             try settingsStore.save(updatedSettings)
             settings = updatedSettings
+        } catch {
+            record(.error, "Login item update failed: \(error)")
+            return
+        }
+
+        do {
+            try loginItemController.setEnabled(enabled)
             record(.info, "Launch at login: \(enabled ? "enabled" : "disabled")")
         } catch {
             record(.error, "Login item update failed: \(error)")
