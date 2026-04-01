@@ -228,6 +228,24 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(persistedSettings.selectedDevice)
     }
 
+    func testLaunchAtLoginToggleCallsControllerAndPersists() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let loginItem = TestLoginItemController()
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: loginItem,
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.setLaunchAtLogin(true)
+
+        XCTAssertTrue(loginItem.lastEnabledValue == true)
+        XCTAssertTrue(model.settings.launchAtLogin)
+    }
+
     func testWeakSamplesTriggerSingleLockAction() async throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)

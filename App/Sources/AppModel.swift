@@ -22,7 +22,7 @@ final class AppModel: ObservableObject {
         settingsStore: ZoneSettingsStore = ZoneSettingsStore(),
         bluetoothRepository: BluetoothRepository = MacBluetoothRepository(),
         systemActions: SystemActionPerforming = LiveSystemActions(),
-        loginItemController: LoginItemControlling = PreviewLoginItemController(),
+        loginItemController: LoginItemControlling = LiveLoginItemController(),
         accessibilityPermission: AccessibilityPermissionProviding = LiveAccessibilityPermission()
     ) {
         self.settingsStore = settingsStore
@@ -133,6 +133,17 @@ final class AppModel: ObservableObject {
         persistSettings()
     }
 
+    func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            try loginItemController.setEnabled(enabled)
+            settings.launchAtLogin = enabled
+            persistSettings()
+            record(.info, "Launch at login: \(enabled ? "enabled" : "disabled")")
+        } catch {
+            record(.error, "Login item update failed: \(error)")
+        }
+    }
+
     func pauseMonitoring() {
         pollTimer?.invalidate()
         pollTimer = nil
@@ -170,6 +181,18 @@ final class AppModel: ObservableObject {
         } catch {
             record(.error, "Wake failed: \(error)")
         }
+    }
+
+    var bluetoothPermissionStatusText: String {
+        bluetoothRepository.bluetoothPermissionStatusText
+    }
+
+    var accessibilityStatusText: String {
+        accessibilityPermission.isTrusted ? "Allowed" : "Needs Approval"
+    }
+
+    var loginItemStatusText: String {
+        loginItemController.statusText
     }
 
     func poll(at date: Date = Date()) {

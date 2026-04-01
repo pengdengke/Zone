@@ -49,6 +49,20 @@ struct SettingsView: View {
                 ), in: 3 ... 10)
             }
 
+            Section("Permissions & Startup") {
+                Text("Bluetooth access: \(model.bluetoothPermissionStatusText)")
+                Text("Accessibility: \(model.accessibilityStatusText)")
+                Text("Login item: \(model.loginItemStatusText)")
+
+                Toggle(
+                    "Launch at login",
+                    isOn: Binding(
+                        get: { model.settings.launchAtLogin },
+                        set: { model.setLaunchAtLogin($0) }
+                    )
+                )
+            }
+
             Section("Diagnostics") {
                 DiagnosticsView(messages: model.diagnostics)
             }

@@ -74,6 +74,31 @@ struct LiveAccessibilityPermission: AccessibilityPermissionProviding {
     }
 }
 
+struct LiveLoginItemController: LoginItemControlling {
+    func setEnabled(_ enabled: Bool) throws {
+        if enabled {
+            try SMAppService.mainApp.register()
+        } else {
+            try SMAppService.mainApp.unregister()
+        }
+    }
+
+    var statusText: String {
+        switch SMAppService.mainApp.status {
+        case .enabled:
+            return "Enabled"
+        case .requiresApproval:
+            return "Requires Approval"
+        case .notFound:
+            return "Not Found"
+        case .notRegistered:
+            return "Not Registered"
+        @unknown default:
+            return "Unknown"
+        }
+    }
+}
+
 struct PreviewSystemActions: SystemActionPerforming {
     func lockScreen() throws {}
     func wakeDisplay() throws {}

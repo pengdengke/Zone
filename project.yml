@@ -10,13 +10,14 @@ packages:
 settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: "13.0"
-    SWIFT_VERSION: "6.0"
 targets:
   Zone:
     type: application
     platform: macOS
     sources:
       - App/Sources
+    resources:
+      - App/Resources
     info:
       path: App/Info.plist
       properties:
@@ -25,6 +26,7 @@ targets:
         NSBluetoothAlwaysUsageDescription: Zone reads Bluetooth signal strength from your selected device to decide when to lock or wake your Mac.
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: "6.0"
     dependencies:
       - package: ZoneCore
