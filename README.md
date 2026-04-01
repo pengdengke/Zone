@@ -48,6 +48,7 @@ xcodebuild -project Zone.xcodeproj -scheme Zone -destination 'platform=macOS' te
 ```
 
 `./scripts/build_dmg.sh` creates an unsigned DMG at `build/Zone.dmg`.
+Opening that DMG shows a standard drag-to-`Applications` install layout with `Zone.app` and an `Applications` shortcut.
 
 ## Continuous Integration
 
@@ -74,6 +75,7 @@ To generate a DMG from GitHub:
 4. Download the `Zone-dmg` artifact after the workflow finishes.
 
 The uploaded artifact contains `Zone.dmg`.
+Opening it shows the same drag-to-`Applications` install layout as the local build.
 
 ## Unsigned DMG
 

@@ -12,10 +12,11 @@ When the trusted device moves far enough away, or when macOS can no longer read 
 
 ## Install And Launch
 
-1. Open the app or drag `Zone.app` into `/Applications`.
-2. Launch Zone.
-3. Look for the shield icon in the macOS menu bar.
-4. Open `Zone Settings` from the menu bar.
+1. Open `Zone.dmg`.
+2. Drag `Zone.app` onto the `Applications` shortcut inside the DMG window.
+3. Launch Zone from `/Applications`.
+4. Look for the shield icon in the macOS menu bar.
+5. Open `Zone Settings` from the menu bar.
 
 ## First-Run Checklist
 
