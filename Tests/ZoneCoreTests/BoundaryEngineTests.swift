@@ -154,4 +154,40 @@ final class BoundaryEngineTests: XCTestCase {
         XCTAssertNil(wakeAttempt)
         XCTAssertEqual(engine.state, .locked)
     }
+
+    func testForceLockedStateClearsStrongSamplesBeforeWakeEvaluation() {
+        var engine = BoundaryEngine(settings: makeSettings())
+        let base = Date(timeIntervalSince1970: 5_000)
+
+        _ = engine.ingest(rssi: -40, at: base)
+        _ = engine.ingest(rssi: -40, at: base.addingTimeInterval(1))
+        _ = engine.ingest(rssi: -40, at: base.addingTimeInterval(2))
+
+        engine.forceLockedState(at: base.addingTimeInterval(3))
+        let wakeAttempt = engine.ingest(rssi: -70, at: base.addingTimeInterval(4))
+
+        XCTAssertNil(wakeAttempt)
+        XCTAssertEqual(engine.state, .locked)
+        XCTAssertEqual(engine.samples, [-70])
+    }
+
+    func testInvalidWakeThresholdNormalizesAboveLockThreshold() {
+        var engine = BoundaryEngine(
+            settings: ZoneSettings(
+                selectedDevice: nil,
+                lockThreshold: -60,
+                wakeThreshold: -70,
+                signalLossTimeout: 10,
+                slidingWindowSize: 3,
+                launchAtLogin: false
+            )
+        )
+        let base = Date(timeIntervalSince1970: 5_500)
+
+        engine.forceLockedState(at: base)
+        let wakeAttempt = engine.ingest(rssi: -65, at: base.addingTimeInterval(1))
+
+        XCTAssertNil(wakeAttempt)
+        XCTAssertEqual(engine.state, .locked)
+    }
 }

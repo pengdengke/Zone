@@ -30,11 +30,16 @@ final class AppModel: ObservableObject {
         self.systemActions = systemActions
         self.loginItemController = loginItemController
         self.accessibilityPermission = accessibilityPermission
-        let loadedSettings = settingsStore.load()
+        let storedSettings = settingsStore.load()
+        let loadedSettings = Self.normalizedSettings(storedSettings)
         self.settings = loadedSettings
         self.boundaryEngine = BoundaryEngine(settings: loadedSettings)
         self.statusLine = loadedSettings.selectedDevice == nil ? "Not Configured" : "Monitoring"
         record(.info, "Zone is ready to be configured.")
+
+        if loadedSettings != storedSettings {
+            try? self.settingsStore.save(loadedSettings)
+        }
 
         if loadedSettings.selectedDevice != nil {
             startPolling()
@@ -104,11 +109,17 @@ final class AppModel: ObservableObject {
 
     func updateLockThreshold(_ value: Int) {
         settings.lockThreshold = value
+        if settings.wakeThreshold <= value {
+            settings.wakeThreshold = value + 1
+        }
         persistSettings()
     }
 
     func updateWakeThreshold(_ value: Int) {
         settings.wakeThreshold = value
+        if value <= settings.lockThreshold {
+            settings.lockThreshold = value - 1
+        }
         persistSettings()
     }
 
@@ -141,6 +152,7 @@ final class AppModel: ObservableObject {
     func lockNow() {
         do {
             try systemActions.lockScreen()
+            boundaryEngine.forceLockedState()
             statusLine = "Locked"
             record(.warning, "Manual lock executed.")
         } catch {
@@ -152,6 +164,7 @@ final class AppModel: ObservableObject {
     func wakeDisplayNow() {
         do {
             try systemActions.wakeDisplay()
+            boundaryEngine.forceUnlockedState()
             statusLine = monitoringStatus()
             record(.info, "Manual wake executed.")
         } catch {
@@ -247,12 +260,21 @@ final class AppModel: ObservableObject {
     }
 
     private func persistSettings() {
+        settings = Self.normalizedSettings(settings)
         boundaryEngine = BoundaryEngine(settings: settings)
         try? settingsStore.save(settings)
     }
 
     private func monitoringStatus() -> String {
         settings.selectedDevice == nil ? "Not Configured" : "Monitoring"
+    }
+
+    private static func normalizedSettings(_ settings: ZoneSettings) -> ZoneSettings {
+        var normalized = settings
+        if normalized.wakeThreshold <= normalized.lockThreshold {
+            normalized.wakeThreshold = normalized.lockThreshold + 1
+        }
+        return normalized
     }
 
     private static func formatDiagnostic(_ entry: DiagnosticEntry) -> String {

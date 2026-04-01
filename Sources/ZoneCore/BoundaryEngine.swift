@@ -46,7 +46,7 @@ public struct BoundaryEngine: Sendable {
 
     public init(settings: ZoneSettings) {
         self.lockThreshold = settings.lockThreshold
-        self.wakeThreshold = settings.wakeThreshold
+        self.wakeThreshold = max(settings.wakeThreshold, settings.lockThreshold + 1)
         self.signalLossTimeout = settings.signalLossTimeout
         self.windowSize = max(1, settings.slidingWindowSize)
     }
@@ -125,6 +125,24 @@ public struct BoundaryEngine: Sendable {
     public var averageRSSI: Double? {
         guard samples.isEmpty == false else { return nil }
         return Double(samples.reduce(0, +)) / Double(samples.count)
+    }
+
+    public mutating func forceLockedState(at date: Date? = nil) {
+        state = .locked
+        samples.removeAll(keepingCapacity: true)
+        missingSince = nil
+        if let date {
+            lastSeenAt = date
+        }
+    }
+
+    public mutating func forceUnlockedState(at date: Date? = nil) {
+        state = .unlocked
+        samples.removeAll(keepingCapacity: true)
+        missingSince = nil
+        if let date {
+            lastSeenAt = date
+        }
     }
 
     private var minimumPresenceSamples: Int {

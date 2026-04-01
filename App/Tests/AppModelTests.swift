@@ -317,4 +317,148 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(actions.lockCalls, 1)
         XCTAssertEqual(actions.wakeCalls, 1)
     }
+
+    func testManualLockLeavesBoundaryEngineReadyForAutomaticWake() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let repository = TestBluetoothRepository(
+            connected: [
+                BluetoothDeviceSummary(
+                    stableID: "token",
+                    addressString: "AA-BB",
+                    displayName: "Desk Phone",
+                    majorDeviceClass: 2
+                )
+            ],
+            readings: [
+                "token": [
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40)
+                ]
+            ]
+        )
+        let actions = TestSystemActions()
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: repository,
+            systemActions: actions,
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.refreshConnectedDevices()
+        model.selectConnectedDevice(stableID: "token")
+        model.updateSlidingWindowSize(3)
+
+        for offset in 0 ..< 3 {
+            model.poll(at: Date(timeIntervalSince1970: TimeInterval(offset)))
+        }
+
+        model.lockNow()
+        model.poll(at: Date(timeIntervalSince1970: 3))
+
+        XCTAssertEqual(actions.lockCalls, 1)
+        XCTAssertEqual(actions.wakeCalls, 1)
+        XCTAssertEqual(model.statusLine, "Monitoring")
+    }
+
+    func testManualWakeLeavesBoundaryEngineReadyForAutomaticRelock() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let repository = TestBluetoothRepository(
+            connected: [
+                BluetoothDeviceSummary(
+                    stableID: "token",
+                    addressString: "AA-BB",
+                    displayName: "Desk Phone",
+                    majorDeviceClass: 2
+                )
+            ],
+            readings: [
+                "token": [
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96)
+                ]
+            ]
+        )
+        let actions = TestSystemActions()
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: repository,
+            systemActions: actions,
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.refreshConnectedDevices()
+        model.selectConnectedDevice(stableID: "token")
+        model.updateSlidingWindowSize(3)
+
+        for offset in 0 ..< 6 {
+            model.poll(at: Date(timeIntervalSince1970: TimeInterval(offset)))
+        }
+
+        model.wakeDisplayNow()
+
+        for offset in 6 ..< 9 {
+            model.poll(at: Date(timeIntervalSince1970: TimeInterval(offset)))
+        }
+
+        XCTAssertEqual(actions.lockCalls, 2)
+        XCTAssertEqual(actions.wakeCalls, 1)
+        XCTAssertEqual(model.statusLine, "Locked")
+    }
+
+    func testUpdatingLockThresholdPreservesValidHysteresisWhenPersisted() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = ZoneSettingsStore(defaults: defaults)
+        let model = AppModel(
+            settingsStore: settingsStore,
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.updateLockThreshold(-54)
+
+        XCTAssertEqual(model.settings.lockThreshold, -54)
+        XCTAssertEqual(model.settings.wakeThreshold, -53)
+
+        let persistedSettings = settingsStore.load()
+        XCTAssertEqual(persistedSettings.lockThreshold, -54)
+        XCTAssertEqual(persistedSettings.wakeThreshold, -53)
+    }
+
+    func testUpdatingWakeThresholdPreservesValidHysteresisWhenPersisted() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let settingsStore = ZoneSettingsStore(defaults: defaults)
+        let model = AppModel(
+            settingsStore: settingsStore,
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.updateWakeThreshold(-85)
+
+        XCTAssertEqual(model.settings.wakeThreshold, -85)
+        XCTAssertEqual(model.settings.lockThreshold, -86)
+
+        let persistedSettings = settingsStore.load()
+        XCTAssertEqual(persistedSettings.wakeThreshold, -85)
+        XCTAssertEqual(persistedSettings.lockThreshold, -86)
+    }
 }
