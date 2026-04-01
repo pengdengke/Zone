@@ -1,6 +1,13 @@
 import Foundation
 import ZoneCore
 
+protocol ZoneSettingsStoring {
+    func load() -> ZoneSettings
+    func save(_ settings: ZoneSettings) throws
+}
+
+extension ZoneSettingsStore: ZoneSettingsStoring {}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var settings: ZoneSettings
@@ -9,7 +16,7 @@ final class AppModel: ObservableObject {
     @Published var latestRSSIText = "--"
     @Published var diagnostics: [String] = ["Zone is ready to be configured."]
 
-    private let settingsStore: ZoneSettingsStore
+    private let settingsStore: any ZoneSettingsStoring
     private let bluetoothRepository: BluetoothRepository
     private let systemActions: SystemActionPerforming
     private let loginItemController: LoginItemControlling
@@ -19,7 +26,7 @@ final class AppModel: ObservableObject {
     private var pollTimer: Timer?
 
     init(
-        settingsStore: ZoneSettingsStore = ZoneSettingsStore(),
+        settingsStore: any ZoneSettingsStoring = ZoneSettingsStore(),
         bluetoothRepository: BluetoothRepository = MacBluetoothRepository(),
         systemActions: SystemActionPerforming = LiveSystemActions(),
         loginItemController: LoginItemControlling = LiveLoginItemController(),
@@ -134,10 +141,13 @@ final class AppModel: ObservableObject {
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
+        var updatedSettings = settings
+        updatedSettings.launchAtLogin = enabled
+
         do {
             try loginItemController.setEnabled(enabled)
-            settings.launchAtLogin = enabled
-            persistSettings()
+            try settingsStore.save(updatedSettings)
+            settings = updatedSettings
             record(.info, "Launch at login: \(enabled ? "enabled" : "disabled")")
         } catch {
             record(.error, "Login item update failed: \(error)")

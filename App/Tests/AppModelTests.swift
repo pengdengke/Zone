@@ -57,6 +57,37 @@ final class TestLoginItemController: LoginItemControlling {
     var statusText: String { "Enabled" }
 }
 
+enum TestSettingsStoreError: Error, CustomStringConvertible {
+    case saveFailed
+
+    var description: String { "save failed" }
+}
+
+final class ThrowingSettingsStore: ZoneSettingsStoring {
+    private(set) var currentSettings: ZoneSettings
+    private let saveError: Error?
+
+    init(
+        initialSettings: ZoneSettings = .default,
+        saveError: Error? = nil
+    ) {
+        currentSettings = initialSettings
+        self.saveError = saveError
+    }
+
+    func load() -> ZoneSettings {
+        currentSettings
+    }
+
+    func save(_ settings: ZoneSettings) throws {
+        if let saveError {
+            throw saveError
+        }
+
+        currentSettings = settings
+    }
+}
+
 struct TestAccessibilityPermission: AccessibilityPermissionProviding {
     var isTrusted: Bool { true }
     func promptIfNeeded() {}
@@ -244,6 +275,24 @@ final class AppModelTests: XCTestCase {
 
         XCTAssertTrue(loginItem.lastEnabledValue == true)
         XCTAssertTrue(model.settings.launchAtLogin)
+    }
+
+    func testLaunchAtLoginSaveFailureRecordsError() async throws {
+        let loginItem = TestLoginItemController()
+        let settingsStore = ThrowingSettingsStore(saveError: TestSettingsStoreError.saveFailed)
+        let model = AppModel(
+            settingsStore: settingsStore,
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: loginItem,
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.setLaunchAtLogin(true)
+
+        XCTAssertTrue(loginItem.lastEnabledValue == true)
+        XCTAssertFalse(model.settings.launchAtLogin)
+        XCTAssertEqual(model.diagnostics.first, "[ERROR] Login item update failed: save failed")
     }
 
     func testWeakSamplesTriggerSingleLockAction() async throws {
