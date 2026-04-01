@@ -47,6 +47,44 @@ xcodebuild -project Zone.xcodeproj -scheme Zone -destination 'platform=macOS' te
 ./scripts/build_dmg.sh
 ```
 
+`./scripts/build_dmg.sh` creates an unsigned DMG at `build/Zone.dmg`.
+
+## Continuous Integration
+
+GitHub Actions now runs the CI workflow automatically for:
+
+- pushes to `develop`
+- pull requests targeting `develop`
+
+The CI workflow performs the same checks used locally:
+
+- `swift test`
+- `xcodegen generate`
+- `xcodebuild -project Zone.xcodeproj -scheme Zone -destination 'platform=macOS' test`
+
+## Manual Release
+
+Zone currently uses a manual GitHub Actions packaging flow for unsigned builds.
+
+To generate a DMG from GitHub:
+
+1. Open the `Actions` tab in GitHub.
+2. Select the `Manual Release` workflow.
+3. Click `Run workflow`.
+4. Download the `Zone-dmg` artifact after the workflow finishes.
+
+The uploaded artifact contains `Zone.dmg`.
+
+## Unsigned DMG
+
+Current GitHub Actions builds are intentionally unsigned.
+
+That means:
+
+- macOS may warn that the app is from an unidentified developer
+- users may need to open the app manually through Finder or System Settings
+- code signing and notarization are planned for a later release phase
+
 ## Known Limitations
 
 - Some phones or Bluetooth profiles stay connected but never expose usable RSSI to macOS. In that case, Zone cannot build a reliable signal boundary from that device.
