@@ -1,5 +1,12 @@
 import Foundation
 
+public enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
+    case english
+    case simplifiedChinese
+
+    public var id: String { rawValue }
+}
+
 public struct SelectedDevice: Codable, Equatable, Identifiable, Sendable {
     public var id: String { stableID }
 
@@ -46,6 +53,7 @@ public struct SelectedDevice: Codable, Equatable, Identifiable, Sendable {
 
 public struct ZoneSettings: Codable, Equatable, Sendable {
     public var selectedDevice: SelectedDevice?
+    public var language: AppLanguage
     public var lockThreshold: Int
     public var wakeThreshold: Int
     public var signalLossTimeout: TimeInterval
@@ -54,6 +62,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
 
     public init(
         selectedDevice: SelectedDevice?,
+        language: AppLanguage = .english,
         lockThreshold: Int,
         wakeThreshold: Int,
         signalLossTimeout: TimeInterval,
@@ -61,6 +70,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         launchAtLogin: Bool
     ) {
         self.selectedDevice = selectedDevice
+        self.language = language
         self.lockThreshold = lockThreshold
         self.wakeThreshold = wakeThreshold
         self.signalLossTimeout = signalLossTimeout
@@ -70,6 +80,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case selectedDevice
+        case language
         case lockThreshold
         case wakeThreshold
         case signalLossTimeout
@@ -94,6 +105,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         } else {
             self.selectedDevice = nil
         }
+        language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? ZoneSettings.default.language
         lockThreshold = try container.decodeIfPresent(Int.self, forKey: .lockThreshold) ?? ZoneSettings.default.lockThreshold
         wakeThreshold = try container.decodeIfPresent(Int.self, forKey: .wakeThreshold) ?? ZoneSettings.default.wakeThreshold
         signalLossTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .signalLossTimeout) ?? ZoneSettings.default.signalLossTimeout
@@ -104,6 +116,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(selectedDevice, forKey: .selectedDevice)
+        try container.encode(language, forKey: .language)
         try container.encode(lockThreshold, forKey: .lockThreshold)
         try container.encode(wakeThreshold, forKey: .wakeThreshold)
         try container.encode(signalLossTimeout, forKey: .signalLossTimeout)
@@ -113,6 +126,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
 
     public static let `default` = ZoneSettings(
         selectedDevice: nil,
+        language: .english,
         lockThreshold: -85,
         wakeThreshold: -55,
         signalLossTimeout: 10,

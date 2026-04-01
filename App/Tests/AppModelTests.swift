@@ -170,6 +170,20 @@ final class FailThenSucceedLockSystemActions: SystemActionPerforming {
     }
 }
 
+final class AlwaysFailingAccessibilityLockSystemActions: SystemActionPerforming {
+    private(set) var lockCalls = 0
+    private(set) var wakeCalls = 0
+
+    func lockScreen() throws {
+        lockCalls += 1
+        throw SystemActionError.accessibilityDenied
+    }
+
+    func wakeDisplay() throws {
+        wakeCalls += 1
+    }
+}
+
 @MainActor
 final class AppModelTests: XCTestCase {
     func testInitWithPersistedSelectedDeviceStartsMonitoring() async throws {
@@ -183,6 +197,7 @@ final class AppModelTests: XCTestCase {
                 displayName: "Desk Phone",
                 majorDeviceClass: 2
             ),
+            language: .english,
             lockThreshold: ZoneSettings.default.lockThreshold,
             wakeThreshold: ZoneSettings.default.wakeThreshold,
             signalLossTimeout: ZoneSettings.default.signalLossTimeout,
@@ -283,6 +298,7 @@ final class AppModelTests: XCTestCase {
                     displayName: "Lost Phone",
                     majorDeviceClass: 2
                 ),
+                language: .english,
                 lockThreshold: -85,
                 wakeThreshold: -55,
                 signalLossTimeout: 10,
@@ -393,65 +409,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.diagnostics.first, "[ERROR] Login item update failed: approval required")
     }
 
-    func testSetupBannerHighlightsCurrentFirstRunBlocker() async throws {
-        let model = AppModel(
-            settingsStore: ZoneSettingsStore(defaults: UserDefaults(suiteName: #function)!),
-            bluetoothRepository: TestBluetoothRepository(
-                connected: [],
-                bluetoothPermissionStatus: "Not Determined"
-            ),
-            systemActions: TestSystemActions(),
-            loginItemController: TestLoginItemController(),
-            accessibilityPermission: PromptingAccessibilityPermission()
-        )
-
-        XCTAssertEqual(model.setupBanner?.title, "Allow Bluetooth Access")
-        XCTAssertEqual(
-            model.setupBanner?.message,
-            "Allow Bluetooth when macOS asks so Zone can read connected devices and signal strength."
-        )
-        XCTAssertFalse(model.showsAccessibilityAccessButton)
-    }
-
-    func testSetupBannerExplainsHowToRecoverWhenSignalIsMissing() async throws {
-        let defaults = UserDefaults(suiteName: #function)!
-        defaults.removePersistentDomain(forName: #function)
-        let repository = TestBluetoothRepository(
-            connected: [
-                BluetoothDeviceSummary(
-                    stableID: "token",
-                    addressString: "AA-BB",
-                    displayName: "Desk Phone",
-                    majorDeviceClass: 2
-                )
-            ],
-            readings: [
-                "token": [
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: nil)
-                ]
-            ]
-        )
-        let model = AppModel(
-            settingsStore: ZoneSettingsStore(defaults: defaults),
-            bluetoothRepository: repository,
-            systemActions: TestSystemActions(),
-            loginItemController: TestLoginItemController(),
-            accessibilityPermission: TestAccessibilityPermission()
-        )
-
-        model.refreshConnectedDevices()
-        model.selectConnectedDevice(stableID: "token")
-        model.poll(at: Date(timeIntervalSince1970: 0))
-
-        XCTAssertEqual(model.setupBanner?.title, "Waiting for Live Signal")
-        XCTAssertEqual(
-            model.setupBanner?.message,
-            "Keep Desk Phone connected and nearby until Zone shows a negative RSSI value. If it stays --, reconnect the device or pick another connected device."
-        )
-        XCTAssertFalse(model.showsAccessibilityAccessButton)
-    }
-
-    func testSetupBannerRequestsAccessibilityBeforeDeviceSelection() async throws {
+    func testLanguageSelectionPersistsAcrossReloads() async throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
         let model = AppModel(
@@ -459,49 +417,75 @@ final class AppModelTests: XCTestCase {
             bluetoothRepository: TestBluetoothRepository(connected: []),
             systemActions: TestSystemActions(),
             loginItemController: TestLoginItemController(),
-            accessibilityPermission: PromptingAccessibilityPermission()
+            accessibilityPermission: TestAccessibilityPermission()
         )
 
-        XCTAssertEqual(model.setupBanner?.title, "Allow Accessibility Access")
-        XCTAssertEqual(
-            model.setupBanner?.message,
-            "Open System Settings > Privacy & Security > Accessibility and allow Zone so it can lock your screen."
+        model.setLanguage(.simplifiedChinese)
+
+        XCTAssertEqual(model.settings.language, .simplifiedChinese)
+
+        let reloadedModel = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
         )
-        XCTAssertTrue(model.showsAccessibilityAccessButton)
+
+        XCTAssertEqual(reloadedModel.settings.language, .simplifiedChinese)
     }
 
-    func testSetupBannerHidesAfterLiveRSSIAppears() async throws {
+    func testRefreshConnectedDevicesDeduplicatesDuplicateStableIDs() async throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
-        let repository = TestBluetoothRepository(
-            connected: [
-                BluetoothDeviceSummary(
-                    stableID: "token",
-                    addressString: "AA-BB",
-                    displayName: "Desk Phone",
-                    majorDeviceClass: 2
-                )
-            ],
-            readings: [
-                "token": [
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -57)
-                ]
-            ]
-        )
         let model = AppModel(
             settingsStore: ZoneSettingsStore(defaults: defaults),
-            bluetoothRepository: repository,
+            bluetoothRepository: TestBluetoothRepository(
+                connected: [
+                    BluetoothDeviceSummary(
+                        stableID: "token",
+                        addressString: "AA-BB",
+                        displayName: "Desk Phone",
+                        majorDeviceClass: 2
+                    ),
+                    BluetoothDeviceSummary(
+                        stableID: "token",
+                        addressString: "AA-BB",
+                        displayName: "Desk Phone",
+                        majorDeviceClass: 2
+                    )
+                ]
+            ),
             systemActions: TestSystemActions(),
             loginItemController: TestLoginItemController(),
             accessibilityPermission: TestAccessibilityPermission()
         )
 
         model.refreshConnectedDevices()
-        model.selectConnectedDevice(stableID: "token")
-        model.poll(at: Date(timeIntervalSince1970: 0))
 
-        XCTAssertNil(model.setupBanner)
-        XCTAssertFalse(model.showsAccessibilityAccessButton)
+        XCTAssertEqual(model.connectedDevices.count, 1)
+        XCTAssertEqual(model.connectedDevices.first?.stableID, "token")
+    }
+
+    func testManualLockPromptsAccessibilityOnlyOncePerSession() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let accessibility = PromptingAccessibilityPermission()
+        let actions = AlwaysFailingAccessibilityLockSystemActions()
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: actions,
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: accessibility
+        )
+
+        model.lockNow()
+        model.lockNow()
+        model.lockNow()
+
+        XCTAssertEqual(actions.lockCalls, 3)
+        XCTAssertEqual(accessibility.promptCalls, 1)
     }
 
     func testWeakSamplesTriggerSingleLockAction() async throws {

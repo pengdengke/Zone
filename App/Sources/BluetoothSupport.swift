@@ -25,10 +25,13 @@ protocol BluetoothRepository {
 
 final class MacBluetoothRepository: BluetoothRepository {
     func connectedDevices() -> [BluetoothDeviceSummary] {
-        allKnownDevices()
+        let sortedDevices = allKnownDevices()
             .filter { $0.isConnected() }
             .map(Self.summary(for:))
             .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+
+        var seenStableIDs = Set<String>()
+        return sortedDevices.filter { seenStableIDs.insert($0.stableID).inserted }
     }
 
     func currentReading(for device: SelectedDevice) -> BluetoothDeviceReading? {

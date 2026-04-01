@@ -10,7 +10,7 @@ struct ZoneApp: App {
             StatusMenuContent(model: model)
         }
 
-        Window("Zone Settings", id: "settings") {
+        Window(model.strings.settingsWindowTitle, id: "settings") {
             SettingsView(model: model)
                 .frame(minWidth: 480, minHeight: 560)
         }

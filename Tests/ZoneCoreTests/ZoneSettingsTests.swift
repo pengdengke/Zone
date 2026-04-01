@@ -7,6 +7,7 @@ final class ZoneSettingsTests: XCTestCase {
         let settings = ZoneSettings.default
 
         XCTAssertNil(settings.selectedDevice)
+        XCTAssertEqual(settings.language, .english)
         XCTAssertEqual(settings.lockThreshold, -85)
         XCTAssertEqual(settings.wakeThreshold, -55)
         XCTAssertEqual(settings.signalLossTimeout, 10)
@@ -22,6 +23,7 @@ final class ZoneSettingsTests: XCTestCase {
                 displayName: "My Phone",
                 majorDeviceClass: 2
             ),
+            language: .simplifiedChinese,
             lockThreshold: -80,
             wakeThreshold: -50,
             signalLossTimeout: 12,
@@ -49,6 +51,7 @@ final class ZoneSettingsTests: XCTestCase {
         let decoded = try JSONDecoder().decode(ZoneSettings.self, from: data)
 
         XCTAssertNil(decoded.selectedDevice)
+        XCTAssertEqual(decoded.language, .english)
         XCTAssertEqual(decoded.lockThreshold, -81)
         XCTAssertEqual(decoded.wakeThreshold, -55)
         XCTAssertEqual(decoded.signalLossTimeout, 10)
@@ -60,6 +63,7 @@ final class ZoneSettingsTests: XCTestCase {
         let data = #"""
         {
           "selectedDevice": "corrupt",
+          "language": "simplifiedChinese",
           "lockThreshold": -81,
           "wakeThreshold": -54,
           "signalLossTimeout": 11,
@@ -71,6 +75,7 @@ final class ZoneSettingsTests: XCTestCase {
         let decoded = try JSONDecoder().decode(ZoneSettings.self, from: data)
 
         XCTAssertNil(decoded.selectedDevice)
+        XCTAssertEqual(decoded.language, .simplifiedChinese)
         XCTAssertEqual(decoded.lockThreshold, -81)
         XCTAssertEqual(decoded.wakeThreshold, -54)
         XCTAssertEqual(decoded.signalLossTimeout, 11)

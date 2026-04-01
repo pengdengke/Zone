@@ -23,6 +23,7 @@ final class ZoneSettingsStoreTests: XCTestCase {
                 displayName: "Desk Phone",
                 majorDeviceClass: 2
             ),
+            language: .simplifiedChinese,
             lockThreshold: -82,
             wakeThreshold: -52,
             signalLossTimeout: 8,

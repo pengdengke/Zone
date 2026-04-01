@@ -1,23 +1,25 @@
+import AppKit
 import SwiftUI
+import ZoneCore
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
         Form {
-            if let setupBanner = model.setupBanner {
-                Section {
-                    SetupBannerCard(
-                        banner: setupBanner,
-                        showsAccessibilityAction: model.showsAccessibilityAccessButton,
-                        accessibilityActionTitle: model.accessibilityRequestButtonTitle,
-                        requestAccessibilityAccess: model.requestAccessibilityAccess
-                    )
+            Section(model.strings.languageSectionTitle) {
+                Picker(model.strings.languagePickerTitle, selection: Binding(
+                    get: { model.settings.language },
+                    set: { model.setLanguage($0) }
+                )) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(model.strings.languageOptionTitle(language)).tag(language)
+                    }
                 }
             }
 
-            Section("Connected Device") {
-                Picker("Use this token", selection: Binding(
+            Section(model.strings.connectedDeviceSectionTitle) {
+                Picker(model.strings.useThisTokenLabel, selection: Binding(
                     get: { model.settings.selectedDevice?.stableID ?? "" },
                     set: {
                         if $0.isEmpty {
@@ -27,68 +29,80 @@ struct SettingsView: View {
                         }
                     }
                 )) {
-                    Text("None").tag("")
+                    Text(model.strings.noneOptionTitle).tag("")
                     ForEach(model.connectedDevices) { device in
                         Text(device.displayName).tag(device.stableID)
                     }
                 }
 
-                Button("Refresh Connected Devices") {
+                Button(model.strings.refreshConnectedDevicesButtonTitle) {
                     model.refreshConnectedDevices()
                 }
 
                 if model.connectedDevices.isEmpty {
-                    Text("Zone only lists Bluetooth devices that macOS currently sees as connected.")
+                    Text(model.strings.connectedDevicesEmptyHint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if model.settings.selectedDevice != nil, model.latestRSSIText == "--" {
-                    Text("Zone still needs a live negative RSSI sample. If it stays --, reconnect the device or choose another connected device.")
+                    Text(model.strings.liveSignalHint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section("Thresholds") {
-                Stepper("Lock below: \(model.settings.lockThreshold) dBm", value: Binding(
+            Section(model.strings.thresholdsSectionTitle) {
+                Stepper(value: Binding(
                     get: { model.settings.lockThreshold },
                     set: { model.updateLockThreshold($0) }
-                ), in: -100 ... -40)
+                ), in: -100 ... -40) {
+                    Text(model.strings.lockBelowTitle(model.settings.lockThreshold))
+                }
 
-                Stepper("Wake above: \(model.settings.wakeThreshold) dBm", value: Binding(
+                Stepper(value: Binding(
                     get: { model.settings.wakeThreshold },
                     set: { model.updateWakeThreshold($0) }
-                ), in: -80 ... -20)
+                ), in: -80 ... -20) {
+                    Text(model.strings.wakeAboveTitle(model.settings.wakeThreshold))
+                }
 
-                Stepper("Signal loss timeout: \(Int(model.settings.signalLossTimeout)) s", value: Binding(
+                Stepper(value: Binding(
                     get: { Int(model.settings.signalLossTimeout) },
                     set: { model.updateSignalLossTimeout(Double($0)) }
-                ), in: 3 ... 30)
+                ), in: 3 ... 30) {
+                    Text(model.strings.signalLossTimeoutTitle(Int(model.settings.signalLossTimeout)))
+                }
 
-                Stepper("Sliding window: \(model.settings.slidingWindowSize)", value: Binding(
+                Stepper(value: Binding(
                     get: { model.settings.slidingWindowSize },
                     set: { model.updateSlidingWindowSize($0) }
-                ), in: 3 ... 10)
+                ), in: 3 ... 10) {
+                    Text(model.strings.slidingWindowTitle(model.settings.slidingWindowSize))
+                }
             }
 
-            Section("Permissions & Startup") {
-                Text("Bluetooth access: \(model.bluetoothPermissionStatusText)")
-                Text("Accessibility: \(model.accessibilityStatusText)")
-                Text("Login item: \(model.loginItemStatusText)")
+            Section(model.strings.permissionsAndStartupSectionTitle) {
+                Text(model.strings.bluetoothAccessTitle(status: model.bluetoothPermissionStatusText))
+                Text(model.strings.accessibilityTitle(status: model.accessibilityStatusText))
+                Text(model.strings.loginItemTitle(status: model.loginItemStatusText))
 
                 if model.isBluetoothAccessReady == false {
-                    Text("Bluetooth permission is required to read your connected device list and signal strength.")
+                    Text(model.strings.bluetoothPermissionHelpText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
                 if model.isAccessibilityReady == false {
-                    Text("Without Accessibility access, Zone cannot trigger macOS lock for you.")
+                    Text(model.strings.accessibilityPermissionHelpText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    Button(model.strings.requestAccessibilityAccessButtonTitle) {
+                        model.requestAccessibilityAccess()
+                    }
                 }
 
                 Toggle(
-                    "Launch at login",
+                    model.strings.launchAtLoginTitle,
                     isOn: Binding(
                         get: { model.settings.launchAtLogin },
                         set: { model.setLaunchAtLogin($0) }
@@ -96,47 +110,19 @@ struct SettingsView: View {
                 )
             }
 
-            Section("Diagnostics") {
-                DiagnosticsView(messages: model.diagnostics)
+            Section(model.strings.diagnosticsSectionTitle) {
+                DiagnosticsView(
+                    messages: model.diagnostics,
+                    emptyStateText: model.strings.noDiagnosticsYetText
+                )
             }
         }
         .padding(16)
         .onAppear {
             model.refreshConnectedDevices()
         }
-    }
-}
-
-private struct SetupBannerCard: View {
-    let banner: SetupBanner
-    let showsAccessibilityAction: Bool
-    let accessibilityActionTitle: String
-    let requestAccessibilityAccess: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: banner.symbolName)
-                .font(.title3)
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 28)
-                .padding(.top, 2)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(banner.title)
-                    .fontWeight(.medium)
-                Text(banner.message)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if showsAccessibilityAction {
-                    Button(accessibilityActionTitle) {
-                        requestAccessibilityAccess()
-                    }
-                    .controlSize(.small)
-                }
-            }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            model.refreshConnectedDevices()
         }
-        .padding(.vertical, 4)
     }
 }

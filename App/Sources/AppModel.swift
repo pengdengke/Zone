@@ -24,6 +24,7 @@ final class AppModel: ObservableObject {
     private var boundaryEngine: BoundaryEngine
     private var diagnosticsBuffer = DiagnosticsBuffer(capacity: 20)
     private var pollTimer: Timer?
+    private var hasPromptedForAccessibilityThisSession = false
 
     init(
         settingsStore: any ZoneSettingsStoring = ZoneSettingsStore(),
@@ -70,6 +71,14 @@ final class AppModel: ObservableObject {
         statusLine == "Paused"
     }
 
+    var strings: AppStrings {
+        AppStrings(language: settings.language)
+    }
+
+    var localizedStatusLine: String {
+        strings.localizedAppStatus(statusLine)
+    }
+
     var isBluetoothAccessReady: Bool {
         bluetoothPermissionStatusText == "Allowed"
     }
@@ -78,56 +87,8 @@ final class AppModel: ObservableObject {
         accessibilityPermission.isTrusted
     }
 
-    var setupBanner: SetupBanner? {
-        if isBluetoothAccessReady == false {
-            return SetupBanner(
-                kind: .bluetoothPermission,
-                title: "Allow Bluetooth Access",
-                message: "Allow Bluetooth when macOS asks so Zone can read connected devices and signal strength.",
-                symbolName: "dot.radiowaves.left.and.right"
-            )
-        }
-
-        if isAccessibilityReady == false {
-            return SetupBanner(
-                kind: .accessibilityPermission,
-                title: "Allow Accessibility Access",
-                message: "Open System Settings > Privacy & Security > Accessibility and allow Zone so it can lock your screen.",
-                symbolName: "hand.raised"
-            )
-        }
-
-        guard let deviceName = settings.selectedDevice?.displayName else {
-            return SetupBanner(
-                kind: .deviceSelection,
-                title: "Choose a Trusted Device",
-                message: "Connect your phone or another Bluetooth token in macOS first, then choose it below.",
-                symbolName: "iphone.gen3.radiowaves.left.and.right"
-            )
-        }
-
-        guard latestRSSIText == "--" else {
-            return nil
-        }
-
-        return SetupBanner(
-            kind: .signal,
-            title: "Waiting for Live Signal",
-            message: "Keep \(deviceName) connected and nearby until Zone shows a negative RSSI value. If it stays --, reconnect the device or pick another connected device.",
-            symbolName: "waveform.badge.magnifyingglass"
-        )
-    }
-
-    var showsAccessibilityAccessButton: Bool {
-        setupBanner?.kind == .accessibilityPermission
-    }
-
-    var accessibilityRequestButtonTitle: String {
-        "Request Accessibility Access"
-    }
-
     func refreshConnectedDevices() {
-        connectedDevices = bluetoothRepository.connectedDevices()
+        connectedDevices = Self.deduplicatedDevices(bluetoothRepository.connectedDevices())
 
         if let selected = settings.selectedDevice,
            bluetoothRepository.currentReading(for: selected) == nil {
@@ -196,6 +157,12 @@ final class AppModel: ObservableObject {
         persistSettings()
     }
 
+    func setLanguage(_ language: AppLanguage) {
+        guard settings.language != language else { return }
+        settings.language = language
+        persistSettings(rebuildBoundaryEngine: false)
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         var updatedSettings = settings
         updatedSettings.launchAtLogin = enabled
@@ -239,7 +206,7 @@ final class AppModel: ObservableObject {
             statusLine = "Locked"
             record(.warning, "Manual lock executed.")
         } catch {
-            accessibilityPermission.promptIfNeeded()
+            promptForAccessibilityAccessIfNeeded(after: error)
             record(.error, "Lock failed: \(error)")
         }
     }
@@ -256,7 +223,10 @@ final class AppModel: ObservableObject {
     }
 
     func requestAccessibilityAccess() {
-        accessibilityPermission.promptIfNeeded()
+        if accessibilityPermission.isTrusted == false {
+            accessibilityPermission.promptIfNeeded()
+            hasPromptedForAccessibilityThisSession = true
+        }
         record(.info, "Requested Accessibility approval.")
     }
 
@@ -329,7 +299,7 @@ final class AppModel: ObservableObject {
                 statusLine = "Locked"
             } catch {
                 restoreBoundaryState(to: transition.previousState)
-                accessibilityPermission.promptIfNeeded()
+                promptForAccessibilityAccessIfNeeded(after: error)
                 statusLine = monitoringStatus()
                 record(.error, "Automatic lock failed: \(error)")
                 return
@@ -368,9 +338,11 @@ final class AppModel: ObservableObject {
         diagnostics = diagnosticsBuffer.entries.map(Self.formatDiagnostic)
     }
 
-    private func persistSettings() {
+    private func persistSettings(rebuildBoundaryEngine: Bool = true) {
         settings = Self.normalizedSettings(settings)
-        boundaryEngine = BoundaryEngine(settings: settings)
+        if rebuildBoundaryEngine {
+            boundaryEngine = BoundaryEngine(settings: settings)
+        }
         try? settingsStore.save(settings)
     }
 
@@ -389,24 +361,44 @@ final class AppModel: ObservableObject {
         settings.selectedDevice == nil ? "Not Configured" : "Monitoring"
     }
 
-    private func setupSignalDetail(deviceName: String) -> String {
-        if latestRSSIText != "--" {
-            return "Live RSSI detected (\(latestRSSIText)). Zone can now evaluate your boundary."
-        }
-
-        if settings.selectedDevice == nil {
-            return "Select a connected device first, then wait for Zone to show a negative RSSI value."
-        }
-
-        return "Keep \(deviceName) connected and nearby until Zone shows a negative RSSI value. If it stays --, reconnect the device or pick another connected device."
-    }
-
     private static func normalizedSettings(_ settings: ZoneSettings) -> ZoneSettings {
         var normalized = settings
         if normalized.wakeThreshold <= normalized.lockThreshold {
             normalized.wakeThreshold = normalized.lockThreshold + 1
         }
         return normalized
+    }
+
+    private func promptForAccessibilityAccessIfNeeded(after error: Error) {
+        guard accessibilityPermission.isTrusted == false else { return }
+        guard isAccessibilityDenied(error) else { return }
+        guard hasPromptedForAccessibilityThisSession == false else { return }
+
+        accessibilityPermission.promptIfNeeded()
+        hasPromptedForAccessibilityThisSession = true
+    }
+
+    private func isAccessibilityDenied(_ error: Error) -> Bool {
+        guard let systemActionError = error as? SystemActionError else {
+            return false
+        }
+
+        if case .accessibilityDenied = systemActionError {
+            return true
+        }
+
+        return false
+    }
+
+    private static func deduplicatedDevices(_ devices: [BluetoothDeviceSummary]) -> [BluetoothDeviceSummary] {
+        var seenStableIDs = Set<String>()
+        var result: [BluetoothDeviceSummary] = []
+
+        for device in devices where seenStableIDs.insert(device.stableID).inserted {
+            result.append(device)
+        }
+
+        return result
     }
 
     private static func formatDiagnostic(_ entry: DiagnosticEntry) -> String {
