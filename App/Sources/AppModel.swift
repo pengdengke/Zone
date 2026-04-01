@@ -220,12 +220,16 @@ final class AppModel: ObservableObject {
 
         guard let reading = bluetoothRepository.currentReading(for: selected) else {
             latestRSSIText = "--"
-            statusLine = "Device Unavailable"
+            if let transition = boundaryEngine.noteMissingSignal(at: date) {
+                apply(transition)
+            } else if boundaryEngine.state != .locked {
+                statusLine = "Device Unavailable"
+            }
             record(.warning, "Configured device is unavailable.")
             return
         }
 
-        if reading.isConnected, let rawRSSI = reading.rawRSSI {
+        if reading.isConnected, let rawRSSI = reading.rawRSSI, rawRSSI < 0 {
             latestRSSIText = "\(rawRSSI) dBm"
             record(.info, "RSSI sample: \(rawRSSI) dBm")
             if let transition = boundaryEngine.ingest(rssi: rawRSSI, at: date) {
@@ -237,6 +241,9 @@ final class AppModel: ObservableObject {
         }
 
         latestRSSIText = "--"
+        if reading.isConnected, boundaryEngine.missingSince == nil {
+            record(.warning, "Connected device did not expose a usable RSSI sample.")
+        }
         if let transition = boundaryEngine.noteMissingSignal(at: date) {
             apply(transition)
         } else if boundaryEngine.state != .locked {
@@ -260,6 +267,7 @@ final class AppModel: ObservableObject {
                 try systemActions.lockScreen()
                 statusLine = "Locked"
             } catch {
+                restoreBoundaryState(to: transition.previousState)
                 accessibilityPermission.promptIfNeeded()
                 statusLine = monitoringStatus()
                 record(.error, "Automatic lock failed: \(error)")
@@ -270,6 +278,7 @@ final class AppModel: ObservableObject {
                 try systemActions.wakeDisplay()
                 statusLine = monitoringStatus()
             } catch {
+                restoreBoundaryState(to: transition.previousState)
                 record(.error, "Automatic wake failed: \(error)")
                 return
             }
@@ -302,6 +311,17 @@ final class AppModel: ObservableObject {
         settings = Self.normalizedSettings(settings)
         boundaryEngine = BoundaryEngine(settings: settings)
         try? settingsStore.save(settings)
+    }
+
+    private func restoreBoundaryState(to state: BoundaryState) {
+        switch state {
+        case .locked:
+            boundaryEngine.forceLockedState()
+        case .unlocked:
+            boundaryEngine.forceUnlockedState()
+        case .unknown:
+            boundaryEngine = BoundaryEngine(settings: settings)
+        }
     }
 
     private func monitoringStatus() -> String {

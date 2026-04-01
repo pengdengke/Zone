@@ -38,7 +38,7 @@ final class MacBluetoothRepository: BluetoothRepository {
 
         let isConnected = match.isConnected()
         let rawRSSI = isConnected ? Int(match.rawRSSI()) : nil
-        let usableRSSI = rawRSSI == 127 ? nil : rawRSSI
+        let usableRSSI = Self.normalizedRSSI(rawRSSI)
 
         return BluetoothDeviceReading(
             isConnected: isConnected,
@@ -63,6 +63,12 @@ final class MacBluetoothRepository: BluetoothRepository {
 
     private func allKnownDevices() -> [IOBluetoothDevice] {
         (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]) ?? []
+    }
+
+    private static func normalizedRSSI(_ rawRSSI: Int?) -> Int? {
+        guard let rawRSSI else { return nil }
+        guard rawRSSI < 0, rawRSSI != 127 else { return nil }
+        return rawRSSI
     }
 
     private static func summary(for device: IOBluetoothDevice) -> BluetoothDeviceSummary {
