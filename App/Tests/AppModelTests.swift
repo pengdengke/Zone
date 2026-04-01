@@ -5,14 +5,17 @@ import ZoneCore
 final class TestBluetoothRepository: BluetoothRepository {
     private let connectedDevicesValue: [BluetoothDeviceSummary]
     private let readings: [String: [BluetoothDeviceReading]]
+    private let bluetoothPermissionStatusValue: String
     private var indices: [String: Int] = [:]
 
     init(
         connected: [BluetoothDeviceSummary],
-        readings: [String: [BluetoothDeviceReading]] = [:]
+        readings: [String: [BluetoothDeviceReading]] = [:],
+        bluetoothPermissionStatus: String = "Allowed"
     ) {
         self.connectedDevicesValue = connected
         self.readings = readings
+        self.bluetoothPermissionStatusValue = bluetoothPermissionStatus
     }
 
     func connectedDevices() -> [BluetoothDeviceSummary] {
@@ -31,7 +34,7 @@ final class TestBluetoothRepository: BluetoothRepository {
         return values[index]
     }
 
-    var bluetoothPermissionStatusText: String { "Allowed" }
+    var bluetoothPermissionStatusText: String { bluetoothPermissionStatusValue }
 }
 
 final class TestSystemActions: SystemActionPerforming {
@@ -388,6 +391,115 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(model.settings.launchAtLogin)
         XCTAssertTrue(settingsStore.load().launchAtLogin)
         XCTAssertEqual(model.diagnostics.first, "[ERROR] Login item update failed: approval required")
+    }
+
+    func testSetupGuideHighlightsFirstRunRequirements() async throws {
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: UserDefaults(suiteName: #function)!),
+            bluetoothRepository: TestBluetoothRepository(
+                connected: [],
+                bluetoothPermissionStatus: "Not Determined"
+            ),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: PromptingAccessibilityPermission()
+        )
+
+        XCTAssertEqual(model.setupGuideTitle, "Finish setup in 4 steps")
+        XCTAssertEqual(
+            model.setupGuideMessage,
+            "Allow Bluetooth when macOS asks so Zone can read connected devices and signal strength."
+        )
+        XCTAssertEqual(
+            model.setupChecklist.map(\.title),
+            [
+                "Allow Bluetooth access",
+                "Allow Accessibility access",
+                "Choose a trusted device",
+                "Confirm live signal"
+            ]
+        )
+        XCTAssertEqual(model.setupChecklist.map(\.isComplete), [false, false, false, false])
+    }
+
+    func testSetupGuideExplainsHowToRecoverWhenSignalIsMissing() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let repository = TestBluetoothRepository(
+            connected: [
+                BluetoothDeviceSummary(
+                    stableID: "token",
+                    addressString: "AA-BB",
+                    displayName: "Desk Phone",
+                    majorDeviceClass: 2
+                )
+            ],
+            readings: [
+                "token": [
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: nil)
+                ]
+            ]
+        )
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: repository,
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.refreshConnectedDevices()
+        model.selectConnectedDevice(stableID: "token")
+        model.poll(at: Date(timeIntervalSince1970: 0))
+
+        XCTAssertEqual(model.setupGuideTitle, "Finish setup in 1 step")
+        XCTAssertEqual(
+            model.setupGuideMessage,
+            "Keep Desk Phone connected and nearby until Zone shows a negative RSSI value. If it stays --, reconnect the device or pick another connected device."
+        )
+        XCTAssertEqual(model.setupChecklist.map(\.isComplete), [true, true, true, false])
+    }
+
+    func testSetupGuideMarksCompletionAfterLiveRSSIAppears() async throws {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let repository = TestBluetoothRepository(
+            connected: [
+                BluetoothDeviceSummary(
+                    stableID: "token",
+                    addressString: "AA-BB",
+                    displayName: "Desk Phone",
+                    majorDeviceClass: 2
+                )
+            ],
+            readings: [
+                "token": [
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -57)
+                ]
+            ]
+        )
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: defaults),
+            bluetoothRepository: repository,
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission()
+        )
+
+        model.refreshConnectedDevices()
+        model.selectConnectedDevice(stableID: "token")
+        model.poll(at: Date(timeIntervalSince1970: 0))
+
+        XCTAssertEqual(model.setupGuideTitle, "Setup complete")
+        XCTAssertEqual(
+            model.setupGuideMessage,
+            "Zone is monitoring Desk Phone. Auto-lock is ready, and wake-on-return will be attempted when macOS reconnects the device."
+        )
+        XCTAssertEqual(model.setupChecklist.map(\.isComplete), [true, true, true, true])
+        XCTAssertEqual(
+            model.setupChecklist.last?.detail,
+            "Live RSSI detected (-57 dBm). Zone can now evaluate your boundary."
+        )
     }
 
     func testWeakSamplesTriggerSingleLockAction() async throws {

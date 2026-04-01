@@ -5,6 +5,27 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("Getting Started") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(model.setupGuideTitle)
+                        .font(.headline)
+                    Text(model.setupGuideMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+
+                ForEach(model.setupChecklist) { step in
+                    SetupChecklistRow(step: step)
+                }
+
+                if model.isAccessibilityReady == false {
+                    Button("Request Accessibility Access") {
+                        model.requestAccessibilityAccess()
+                    }
+                }
+            }
+
             Section("Connected Device") {
                 Picker("Use this token", selection: Binding(
                     get: { model.settings.selectedDevice?.stableID ?? "" },
@@ -24,6 +45,16 @@ struct SettingsView: View {
 
                 Button("Refresh Connected Devices") {
                     model.refreshConnectedDevices()
+                }
+
+                if model.connectedDevices.isEmpty {
+                    Text("Zone only lists Bluetooth devices that macOS currently sees as connected.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if model.settings.selectedDevice != nil, model.latestRSSIText == "--" {
+                    Text("Zone still needs a live negative RSSI sample. If it stays --, reconnect the device or choose another connected device.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -54,6 +85,18 @@ struct SettingsView: View {
                 Text("Accessibility: \(model.accessibilityStatusText)")
                 Text("Login item: \(model.loginItemStatusText)")
 
+                if model.isBluetoothAccessReady == false {
+                    Text("Bluetooth permission is required to read your connected device list and signal strength.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if model.isAccessibilityReady == false {
+                    Text("Without Accessibility access, Zone cannot trigger macOS lock for you.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Toggle(
                     "Launch at login",
                     isOn: Binding(
@@ -71,5 +114,27 @@ struct SettingsView: View {
         .onAppear {
             model.refreshConnectedDevices()
         }
+    }
+}
+
+private struct SetupChecklistRow: View {
+    let step: SetupChecklistStep
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: step.isComplete ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(step.isComplete ? .green : .secondary)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(step.title)
+                    .fontWeight(.medium)
+                Text(step.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 2)
     }
 }

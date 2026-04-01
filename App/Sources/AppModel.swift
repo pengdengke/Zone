@@ -70,6 +70,70 @@ final class AppModel: ObservableObject {
         statusLine == "Paused"
     }
 
+    var isBluetoothAccessReady: Bool {
+        bluetoothPermissionStatusText == "Allowed"
+    }
+
+    var isAccessibilityReady: Bool {
+        accessibilityPermission.isTrusted
+    }
+
+    var setupChecklist: [SetupChecklistStep] {
+        let deviceName = settings.selectedDevice?.displayName ?? "your trusted device"
+
+        return [
+            SetupChecklistStep(
+                id: "bluetooth",
+                title: "Allow Bluetooth access",
+                detail: isBluetoothAccessReady
+                    ? "Bluetooth access is allowed."
+                    : "Allow Bluetooth when macOS asks so Zone can read connected devices and signal strength.",
+                isComplete: isBluetoothAccessReady
+            ),
+            SetupChecklistStep(
+                id: "accessibility",
+                title: "Allow Accessibility access",
+                detail: isAccessibilityReady
+                    ? "Accessibility is allowed. Lock Now and automatic locking can work."
+                    : "Open System Settings > Privacy & Security > Accessibility and allow Zone so it can lock your screen.",
+                isComplete: isAccessibilityReady
+            ),
+            SetupChecklistStep(
+                id: "device",
+                title: "Choose a trusted device",
+                detail: settings.selectedDevice == nil
+                    ? "Connect your phone or another Bluetooth token in macOS first, then choose it below."
+                    : "Using \(deviceName) as your trusted device.",
+                isComplete: settings.selectedDevice != nil
+            ),
+            SetupChecklistStep(
+                id: "signal",
+                title: "Confirm live signal",
+                detail: setupSignalDetail(deviceName: deviceName),
+                isComplete: latestRSSIText != "--"
+            )
+        ]
+    }
+
+    var setupGuideTitle: String {
+        let remainingSteps = setupChecklist.filter { $0.isComplete == false }.count
+        if remainingSteps == 0 {
+            return "Setup complete"
+        }
+
+        let stepLabel = remainingSteps == 1 ? "step" : "steps"
+        return "Finish setup in \(remainingSteps) \(stepLabel)"
+    }
+
+    var setupGuideMessage: String {
+        if let nextStep = setupChecklist.first(where: { $0.isComplete == false }) {
+            return nextStep.detail
+        }
+
+        let deviceName = settings.selectedDevice?.displayName ?? "your trusted device"
+        return "Zone is monitoring \(deviceName). Auto-lock is ready, and wake-on-return will be attempted when macOS reconnects the device."
+    }
+
     func refreshConnectedDevices() {
         connectedDevices = bluetoothRepository.connectedDevices()
 
@@ -199,6 +263,11 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func requestAccessibilityAccess() {
+        accessibilityPermission.promptIfNeeded()
+        record(.info, "Requested Accessibility approval.")
+    }
+
     var bluetoothPermissionStatusText: String {
         bluetoothRepository.bluetoothPermissionStatusText
     }
@@ -326,6 +395,18 @@ final class AppModel: ObservableObject {
 
     private func monitoringStatus() -> String {
         settings.selectedDevice == nil ? "Not Configured" : "Monitoring"
+    }
+
+    private func setupSignalDetail(deviceName: String) -> String {
+        if latestRSSIText != "--" {
+            return "Live RSSI detected (\(latestRSSIText)). Zone can now evaluate your boundary."
+        }
+
+        if settings.selectedDevice == nil {
+            return "Select a connected device first, then wait for Zone to show a negative RSSI value."
+        }
+
+        return "Keep \(deviceName) connected and nearby until Zone shows a negative RSSI value. If it stays --, reconnect the device or pick another connected device."
     }
 
     private static func normalizedSettings(_ settings: ZoneSettings) -> ZoneSettings {
