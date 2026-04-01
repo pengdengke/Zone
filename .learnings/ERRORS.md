@@ -32,3 +32,32 @@ Check whether another git process is active. If no git process owns the lock, re
 - Related Files: .git/index.lock
 
 ---
+
+## [ERR-20260401-001] xcodebuild-test-selection
+
+**Logged**: 2026-04-01T02:24:20Z
+**Priority**: medium
+**Status**: pending
+**Area**: tests
+
+### Summary
+`xcodebuild test` failed when the command targeted `ZoneCoreTests` because that package test target is not part of the app scheme's test plan.
+
+### Error
+```text
+xcodebuild: error: Failed to build project Zone with scheme Zone.: Tests in the target “ZoneCoreTests” can’t be run because “ZoneCoreTests” isn’t a member of the specified test plan or scheme.
+```
+
+### Context
+- Command attempted: `xcodebuild -project Zone.xcodeproj -scheme Zone -destination 'platform=macOS' test -only-testing:ZoneTests/AppModelTests -only-testing:ZoneCoreTests/BoundaryEngineTests`
+- Repository layout: `ZoneCoreTests` are exercised through the Swift package, while the Xcode scheme currently only exposes `ZoneTests`
+- Follow-up verification succeeded by splitting the commands into `swift test` for package tests and `xcodebuild ... -only-testing:ZoneTests/AppModelTests` for app tests
+
+### Suggested Fix
+Keep package verification on `swift test` unless the Xcode scheme is updated to include `ZoneCoreTests` in its test plan.
+
+### Metadata
+- Reproducible: yes
+- Related Files: Zone.xcodeproj
+
+---
