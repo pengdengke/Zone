@@ -33,6 +33,35 @@ Check whether another git process is active. If no git process owns the lock, re
 
 ---
 
+## [ERR-20260331-002] git-status-ignored-flag
+
+**Logged**: 2026-03-31T18:45:00+08:00
+**Priority**: medium
+**Status**: pending
+**Area**: infra
+
+### Summary
+Used an invalid `git status --ignored=.traditional` flag form while checking repository hygiene.
+
+### Error
+```text
+fatal: Invalid ignored mode '.traditional'
+```
+
+### Context
+- Command attempted: `git -C /Users/xgm/code/github.com/pengdengke/Zone status --short --ignored=.traditional`
+- Goal: inspect ignored and untracked entries in the main repository after reviewing worktree hygiene
+- Correct syntax is `git status --short --ignored=traditional` or plain `git status --short --ignored`
+
+### Suggested Fix
+Use a valid `--ignored` mode value without a leading dot.
+
+### Metadata
+- Reproducible: yes
+- Related Files: .learnings/ERRORS.md
+
+---
+
 ## [ERR-20260401-001] xcodebuild-test-selection
 
 **Logged**: 2026-04-01T02:24:20Z
