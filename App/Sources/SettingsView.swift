@@ -25,6 +25,29 @@ struct SettingsView: View {
                 }
             }
 
+            Section(model.strings.versionSectionTitle) {
+                statusRow(model.strings.currentVersionLabelTitle, status: model.currentVersionText)
+                statusRow(model.strings.latestReleaseLabelTitle, status: model.latestReleaseVersionText)
+                statusRow(model.strings.releasePublishedAtLabelTitle, status: model.latestReleasePublishedAtText)
+                statusRow(model.strings.updateStatusLabelTitle, status: model.updateStatusText)
+
+                detailRow {
+                    HStack(spacing: 12) {
+                        Button(model.strings.checkForUpdatesButtonTitle) {
+                            Task {
+                                await model.checkForUpdates()
+                            }
+                        }
+                        .disabled(model.isCheckingForUpdates)
+
+                        Button(model.strings.openLatestReleaseButtonTitle) {
+                            model.openLatestReleasePage()
+                        }
+                        .disabled(model.canOpenLatestReleasePage == false)
+                    }
+                }
+            }
+
             Section(model.strings.connectedDeviceSectionTitle) {
                 controlRow(model.strings.useThisTokenLabel) {
                     Picker("", selection: Binding(

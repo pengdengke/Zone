@@ -52,6 +52,42 @@ struct AppStrings {
         isChinese ? "语言" : "Language"
     }
 
+    var versionSectionTitle: String {
+        isChinese ? "版本与更新" : "Version & Updates"
+    }
+
+    var currentVersionLabelTitle: String {
+        isChinese ? "当前版本" : "Current version"
+    }
+
+    var latestReleaseLabelTitle: String {
+        isChinese ? "最新版本" : "Latest release"
+    }
+
+    var releasePublishedAtLabelTitle: String {
+        isChinese ? "发布时间" : "Published"
+    }
+
+    var updateStatusLabelTitle: String {
+        isChinese ? "更新状态" : "Update status"
+    }
+
+    var checkForUpdatesButtonTitle: String {
+        isChinese ? "检查更新" : "Check for Updates"
+    }
+
+    var openLatestReleaseButtonTitle: String {
+        isChinese ? "打开发布页" : "Open Release Page"
+    }
+
+    var latestReleaseUnavailableValueText: String {
+        isChinese ? "不可用" : "Unavailable"
+    }
+
+    var publishedDateUnavailableValueText: String {
+        isChinese ? "未知" : "Unknown"
+    }
+
     var languagePickerTitle: String {
         isChinese ? "界面语言" : "App Language"
     }
@@ -195,6 +231,23 @@ struct AppStrings {
 
     var noDiagnosticsYetText: String {
         isChinese ? "还没有诊断信息。" : "No diagnostics yet."
+    }
+
+    func updateStatusText(for state: AppUpdateCheckState) -> String {
+        switch state {
+        case .idle:
+            return isChinese ? "尚未检查" : "Not checked yet"
+        case .checking:
+            return isChinese ? "检查中…" : "Checking…"
+        case .upToDate:
+            return isChinese ? "已是最新" : "Up to date"
+        case .updateAvailable:
+            return isChinese ? "发现新版本" : "Update available"
+        case .failed:
+            return isChinese ? "检查失败" : "Check failed"
+        case .comparisonUnavailable:
+            return isChinese ? "无法比较版本" : "Version comparison unavailable"
+        }
     }
 
     func localizedAppStatus(_ raw: String) -> String {

@@ -2,6 +2,45 @@ import XCTest
 @testable import Zone
 import ZoneCore
 
+enum TestReleaseCheckerError: Error {
+    case offline
+}
+
+final class TestReleaseChecker: ReleaseChecking {
+    private var results: [Result<GitHubRelease, Error>]
+    private(set) var fetchCalls = 0
+
+    init(results: [Result<GitHubRelease, Error>]) {
+        self.results = results
+    }
+
+    func fetchLatestRelease() async throws -> GitHubRelease {
+        fetchCalls += 1
+
+        if results.isEmpty {
+            throw TestReleaseCheckerError.offline
+        }
+
+        return try results.removeFirst().get()
+    }
+}
+
+struct TestAppVersionProvider: AppVersionProviding {
+    let version: AppVersionInfo
+
+    func currentVersion() -> AppVersionInfo {
+        version
+    }
+}
+
+final class TestReleasePageOpener: ReleasePageOpening {
+    private(set) var openedURLs: [URL] = []
+
+    func open(_ url: URL) {
+        openedURLs.append(url)
+    }
+}
+
 final class TestBluetoothRepository: BluetoothRepository {
     private let connectedDevicesValue: [BluetoothDeviceSummary]
     private let readings: [String: [BluetoothDeviceReading]]
@@ -186,6 +225,94 @@ final class AlwaysFailingAccessibilityLockSystemActions: SystemActionPerforming 
 
 @MainActor
 final class AppModelTests: XCTestCase {
+    func testInitAutomaticallyChecksForUpdatesAndShowsAvailableRelease() async throws {
+        let releaseChecker = TestReleaseChecker(results: [
+            .success(
+                GitHubRelease(
+                    tagName: "v1.2.3",
+                    htmlURL: URL(string: "https://github.com/pengdengke/Zone/releases/tag/v1.2.3")!,
+                    publishedAt: Date(timeIntervalSince1970: 1_712_345_678)
+                )
+            )
+        ])
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: UserDefaults(suiteName: #function)!),
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission(),
+            releaseChecker: releaseChecker,
+            appVersionProvider: TestAppVersionProvider(
+                version: AppVersionInfo(marketingVersion: "1.2.2", buildVersion: "1.2.2")
+            ),
+            releasePageOpener: TestReleasePageOpener()
+        )
+
+        await waitForUpdateCheck(on: model)
+
+        XCTAssertEqual(releaseChecker.fetchCalls, 1)
+        XCTAssertEqual(model.currentVersionText, "1.2.2")
+        XCTAssertEqual(model.latestReleaseVersionText, "1.2.3")
+        XCTAssertEqual(model.updateCheckState, .updateAvailable)
+        XCTAssertTrue(model.canOpenLatestReleasePage)
+    }
+
+    func testManualCheckFailureShowsFailedState() async throws {
+        let releaseChecker = TestReleaseChecker(results: [.failure(TestReleaseCheckerError.offline)])
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: UserDefaults(suiteName: #function)!),
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission(),
+            releaseChecker: releaseChecker,
+            appVersionProvider: TestAppVersionProvider(
+                version: AppVersionInfo(marketingVersion: "1.2.2", buildVersion: "1.2.2")
+            ),
+            releasePageOpener: TestReleasePageOpener(),
+            autoCheckForUpdates: false
+        )
+
+        await model.checkForUpdates()
+
+        XCTAssertEqual(model.updateCheckState, .failed)
+        XCTAssertEqual(model.latestReleaseVersionText, model.strings.latestReleaseUnavailableValueText)
+        XCTAssertFalse(model.canOpenLatestReleasePage)
+    }
+
+    func testManualCheckWithUncomparableReleaseStillShowsReleaseMetadata() async throws {
+        let releaseChecker = TestReleaseChecker(results: [
+            .success(
+                GitHubRelease(
+                    tagName: "release-2026-04-02",
+                    htmlURL: URL(string: "https://github.com/pengdengke/Zone/releases/tag/release-2026-04-02")!,
+                    publishedAt: nil
+                )
+            )
+        ])
+        let opener = TestReleasePageOpener()
+        let model = AppModel(
+            settingsStore: ZoneSettingsStore(defaults: UserDefaults(suiteName: #function)!),
+            bluetoothRepository: TestBluetoothRepository(connected: []),
+            systemActions: TestSystemActions(),
+            loginItemController: TestLoginItemController(),
+            accessibilityPermission: TestAccessibilityPermission(),
+            releaseChecker: releaseChecker,
+            appVersionProvider: TestAppVersionProvider(
+                version: AppVersionInfo(marketingVersion: "1.2.2", buildVersion: "1.2.2")
+            ),
+            releasePageOpener: opener,
+            autoCheckForUpdates: false
+        )
+
+        await model.checkForUpdates()
+        model.openLatestReleasePage()
+
+        XCTAssertEqual(model.updateCheckState, .comparisonUnavailable)
+        XCTAssertEqual(model.latestReleaseVersionText, "release-2026-04-02")
+        XCTAssertEqual(opener.openedURLs.count, 1)
+    }
+
     func testInitWithPersistedSelectedDeviceStartsMonitoring() async throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
@@ -888,5 +1015,15 @@ final class AppModelTests: XCTestCase {
         let persistedSettings = settingsStore.load()
         XCTAssertEqual(persistedSettings.wakeThreshold, -85)
         XCTAssertEqual(persistedSettings.lockThreshold, -86)
+    }
+
+    private func waitForUpdateCheck(on model: AppModel) async {
+        for _ in 0 ..< 100 {
+            if model.updateCheckState != .idle, model.updateCheckState != .checking {
+                return
+            }
+
+            await Task.yield()
+        }
     }
 }

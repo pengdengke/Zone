@@ -15,29 +15,41 @@ final class AppModel: ObservableObject {
     @Published var statusLine = "Not Configured"
     @Published var latestRSSIText = "--"
     @Published var diagnostics: [String] = ["Zone is ready to be configured."]
+    @Published private(set) var updateCheckState: AppUpdateCheckState = .idle
 
     private let settingsStore: any ZoneSettingsStoring
     private let bluetoothRepository: BluetoothRepository
     private let systemActions: SystemActionPerforming
     private let loginItemController: LoginItemControlling
     private let accessibilityPermission: AccessibilityPermissionProviding
+    private let releaseChecker: any ReleaseChecking
+    private let releasePageOpener: any ReleasePageOpening
+    private let currentVersionInfo: AppVersionInfo
     private var boundaryEngine: BoundaryEngine
     private var diagnosticsBuffer = DiagnosticsBuffer(capacity: 20)
     private var pollTimer: Timer?
     private var hasPromptedForAccessibilityThisSession = false
+    private var latestRelease: GitHubRelease?
 
     init(
         settingsStore: any ZoneSettingsStoring = ZoneSettingsStore(),
         bluetoothRepository: BluetoothRepository = MacBluetoothRepository(),
         systemActions: SystemActionPerforming = LiveSystemActions(),
         loginItemController: LoginItemControlling = LiveLoginItemController(),
-        accessibilityPermission: AccessibilityPermissionProviding = LiveAccessibilityPermission()
+        accessibilityPermission: AccessibilityPermissionProviding = LiveAccessibilityPermission(),
+        releaseChecker: any ReleaseChecking = LiveGitHubReleaseChecker(),
+        appVersionProvider: any AppVersionProviding = BundleAppVersionProvider(),
+        releasePageOpener: any ReleasePageOpening = LiveReleasePageOpener(),
+        autoCheckForUpdates: Bool = true
     ) {
         self.settingsStore = settingsStore
         self.bluetoothRepository = bluetoothRepository
         self.systemActions = systemActions
         self.loginItemController = loginItemController
         self.accessibilityPermission = accessibilityPermission
+        self.releaseChecker = releaseChecker
+        self.releasePageOpener = releasePageOpener
+        self.currentVersionInfo = appVersionProvider.currentVersion()
         let storedSettings = settingsStore.load()
         let loadedSettings = Self.normalizedSettings(storedSettings)
         self.settings = loadedSettings
@@ -51,6 +63,12 @@ final class AppModel: ObservableObject {
 
         if loadedSettings.selectedDevice != nil {
             startPolling()
+        }
+
+        if autoCheckForUpdates {
+            Task { [weak self] in
+                await self?.checkForUpdates()
+            }
         }
     }
 
@@ -73,6 +91,34 @@ final class AppModel: ObservableObject {
 
     var strings: AppStrings {
         AppStrings(language: settings.language)
+    }
+
+    var currentVersionText: String {
+        currentVersionInfo.displayText
+    }
+
+    var latestReleaseVersionText: String {
+        latestRelease?.displayVersion ?? strings.latestReleaseUnavailableValueText
+    }
+
+    var latestReleasePublishedAtText: String {
+        guard let publishedAt = latestRelease?.publishedAt else {
+            return strings.publishedDateUnavailableValueText
+        }
+
+        return DateFormatter.localizedString(from: publishedAt, dateStyle: .medium, timeStyle: .none)
+    }
+
+    var updateStatusText: String {
+        strings.updateStatusText(for: updateCheckState)
+    }
+
+    var canOpenLatestReleasePage: Bool {
+        latestRelease != nil
+    }
+
+    var isCheckingForUpdates: Bool {
+        updateCheckState == .checking
     }
 
     var localizedStatusLine: String {
@@ -228,6 +274,36 @@ final class AppModel: ObservableObject {
             hasPromptedForAccessibilityThisSession = true
         }
         record(.info, "Requested Accessibility approval.")
+    }
+
+    func checkForUpdates() async {
+        guard updateCheckState != .checking else { return }
+        updateCheckState = .checking
+
+        do {
+            let release = try await releaseChecker.fetchLatestRelease()
+            latestRelease = release
+
+            guard
+                let currentVersion = ReleaseVersion(string: currentVersionInfo.marketingVersion),
+                let latestVersion = release.version
+            else {
+                updateCheckState = .comparisonUnavailable
+                record(.warning, "Latest release was fetched, but version comparison is unavailable.")
+                return
+            }
+
+            updateCheckState = latestVersion > currentVersion ? .updateAvailable : .upToDate
+            record(.info, "Latest release checked: \(release.tagName)")
+        } catch {
+            updateCheckState = .failed
+            record(.error, "Update check failed: \(error)")
+        }
+    }
+
+    func openLatestReleasePage() {
+        guard let url = latestRelease?.htmlURL else { return }
+        releasePageOpener.open(url)
     }
 
     var bluetoothPermissionStatusText: String {
