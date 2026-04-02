@@ -41,21 +41,22 @@ For the full walkthrough and troubleshooting tips, see [docs/getting-started.md]
 
 ## Build From Source
 
+Please do not rely on GitHub Actions in the upstream `pengdengke/Zone` repository for your own builds.
+If you want GitHub-hosted automation, fork this repository first and run Actions in your own fork.
+
 ```bash
 xcodegen generate
 xcodebuild -project Zone.xcodeproj -scheme Zone -destination 'platform=macOS' test
 ./scripts/build_dmg.sh
 ```
 
-`./scripts/build_dmg.sh` creates an unsigned DMG at `build/Zone.dmg`.
+`./scripts/build_dmg.sh` keeps the final unsigned DMG at `build/Zone.dmg`.
 Opening that DMG shows a standard drag-to-`Applications` install layout with `Zone.app` and an `Applications` shortcut.
 
 ## Continuous Integration
 
-GitHub Actions now runs the CI workflow automatically for:
-
-- pushes to `develop`
-- pull requests targeting `develop`
+The upstream repository only runs CI for maintainer pushes to `master`.
+External users should fork the repository if they want to run GitHub Actions for their own changes.
 
 The CI workflow performs the same checks used locally:
 
@@ -63,23 +64,10 @@ The CI workflow performs the same checks used locally:
 - `xcodegen generate`
 - `xcodebuild -project Zone.xcodeproj -scheme Zone -destination 'platform=macOS' test`
 
-## Manual Release
+## Unsigned Builds
 
-Zone currently uses a manual GitHub Actions packaging flow for unsigned builds.
-
-To generate a DMG from GitHub:
-
-1. Open the `Actions` tab in GitHub.
-2. Select the `Manual Release` workflow.
-3. Click `Run workflow`.
-4. Download the `Zone-dmg` artifact after the workflow finishes.
-
-The uploaded artifact contains `Zone.dmg`.
-Opening it shows the same drag-to-`Applications` install layout as the local build.
-
-## Unsigned DMG
-
-Current GitHub Actions builds are intentionally unsigned.
+Local builds, and any builds you create in your own fork, are intentionally unsigned.
+The packaging output is the DMG itself, not a ZIP wrapper.
 
 That means:
 

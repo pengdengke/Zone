@@ -93,36 +93,80 @@ struct AppStrings {
         isChinese ? "阈值" : "Thresholds"
     }
 
+    var lockBelowLabelTitle: String {
+        isChinese ? "低于此值锁屏" : "Lock below"
+    }
+
     func lockBelowTitle(_ value: Int) -> String {
         isChinese ? "低于此值锁屏：\(value) dBm" : "Lock below: \(value) dBm"
+    }
+
+    func lockThresholdValueTitle(_ value: Int) -> String {
+        "\(value) dBm"
+    }
+
+    var wakeAboveLabelTitle: String {
+        isChinese ? "高于此值唤醒" : "Wake above"
     }
 
     func wakeAboveTitle(_ value: Int) -> String {
         isChinese ? "高于此值唤醒：\(value) dBm" : "Wake above: \(value) dBm"
     }
 
+    func wakeThresholdValueTitle(_ value: Int) -> String {
+        "\(value) dBm"
+    }
+
+    var signalLossTimeoutLabelTitle: String {
+        isChinese ? "信号丢失超时" : "Signal loss timeout"
+    }
+
     func signalLossTimeoutTitle(_ value: Int) -> String {
         isChinese ? "信号丢失超时：\(value) 秒" : "Signal loss timeout: \(value) s"
+    }
+
+    func signalLossTimeoutValueTitle(_ value: Int) -> String {
+        isChinese ? "\(value) 秒" : "\(value) s"
+    }
+
+    var slidingWindowLabelTitle: String {
+        isChinese ? "滑动窗口" : "Sliding window"
     }
 
     func slidingWindowTitle(_ value: Int) -> String {
         isChinese ? "滑动窗口：\(value)" : "Sliding window: \(value)"
     }
 
+    func slidingWindowValueTitle(_ value: Int) -> String {
+        "\(value)"
+    }
+
     var permissionsAndStartupSectionTitle: String {
         isChinese ? "权限与启动" : "Permissions & Startup"
     }
 
+    var bluetoothAccessLabelTitle: String {
+        isChinese ? "蓝牙权限" : "Bluetooth access"
+    }
+
     func bluetoothAccessTitle(status: String) -> String {
-        "\(isChinese ? "蓝牙权限" : "Bluetooth access"): \(localizedSystemStatus(status))"
+        "\(bluetoothAccessLabelTitle): \(localizedSystemStatus(status))"
+    }
+
+    var accessibilityLabelTitle: String {
+        isChinese ? "辅助功能" : "Accessibility"
     }
 
     func accessibilityTitle(status: String) -> String {
-        "\(isChinese ? "辅助功能" : "Accessibility"): \(localizedSystemStatus(status))"
+        "\(accessibilityLabelTitle): \(localizedSystemStatus(status))"
+    }
+
+    var loginItemLabelTitle: String {
+        isChinese ? "登录项" : "Login item"
     }
 
     func loginItemTitle(status: String) -> String {
-        "\(isChinese ? "登录项" : "Login item"): \(localizedSystemStatus(status))"
+        "\(loginItemLabelTitle): \(localizedSystemStatus(status))"
     }
 
     var bluetoothPermissionHelpText: String {

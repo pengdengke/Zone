@@ -3,111 +3,138 @@ import SwiftUI
 import ZoneCore
 
 struct SettingsView: View {
+    private static let labelColumnWidth: CGFloat = 180
+    private static let rowSpacing: CGFloat = 12
+
     @ObservedObject var model: AppModel
 
     var body: some View {
         Form {
             Section(model.strings.languageSectionTitle) {
-                Picker(model.strings.languagePickerTitle, selection: Binding(
-                    get: { model.settings.language },
-                    set: { model.setLanguage($0) }
-                )) {
-                    ForEach(AppLanguage.allCases) { language in
-                        Text(model.strings.languageOptionTitle(language)).tag(language)
+                controlRow(model.strings.languagePickerTitle) {
+                    Picker("", selection: Binding(
+                        get: { model.settings.language },
+                        set: { model.setLanguage($0) }
+                    )) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(model.strings.languageOptionTitle(language)).tag(language)
+                        }
                     }
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
 
             Section(model.strings.connectedDeviceSectionTitle) {
-                Picker(model.strings.useThisTokenLabel, selection: Binding(
-                    get: { model.settings.selectedDevice?.stableID ?? "" },
-                    set: {
-                        if $0.isEmpty {
-                            model.clearSelectedDevice()
-                        } else {
-                            model.selectConnectedDevice(stableID: $0)
+                controlRow(model.strings.useThisTokenLabel) {
+                    Picker("", selection: Binding(
+                        get: { model.settings.selectedDevice?.stableID ?? "" },
+                        set: {
+                            if $0.isEmpty {
+                                model.clearSelectedDevice()
+                            } else {
+                                model.selectConnectedDevice(stableID: $0)
+                            }
+                        }
+                    )) {
+                        Text(model.strings.noneOptionTitle).tag("")
+                        ForEach(model.connectedDevices) { device in
+                            Text(device.displayName).tag(device.stableID)
                         }
                     }
-                )) {
-                    Text(model.strings.noneOptionTitle).tag("")
-                    ForEach(model.connectedDevices) { device in
-                        Text(device.displayName).tag(device.stableID)
-                    }
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                Button(model.strings.refreshConnectedDevicesButtonTitle) {
-                    model.refreshConnectedDevices()
+                detailRow {
+                    Button(model.strings.refreshConnectedDevicesButtonTitle) {
+                        model.refreshConnectedDevices()
+                    }
                 }
 
                 if model.connectedDevices.isEmpty {
-                    Text(model.strings.connectedDevicesEmptyHint)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    detailHint(model.strings.connectedDevicesEmptyHint)
                 } else if model.settings.selectedDevice != nil, model.latestRSSIText == "--" {
-                    Text(model.strings.liveSignalHint)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    detailHint(model.strings.liveSignalHint)
                 }
             }
 
             Section(model.strings.thresholdsSectionTitle) {
-                Stepper(value: Binding(
-                    get: { model.settings.lockThreshold },
-                    set: { model.updateLockThreshold($0) }
-                ), in: -100 ... -40) {
-                    Text(model.strings.lockBelowTitle(model.settings.lockThreshold))
+                controlRow(model.strings.lockBelowLabelTitle) {
+                    stepperValueRow(model.strings.lockThresholdValueTitle(model.settings.lockThreshold)) {
+                        Stepper(value: Binding(
+                            get: { model.settings.lockThreshold },
+                            set: { model.updateLockThreshold($0) }
+                        ), in: -100 ... -40) {
+                            EmptyView()
+                        }
+                        .labelsHidden()
+                    }
                 }
 
-                Stepper(value: Binding(
-                    get: { model.settings.wakeThreshold },
-                    set: { model.updateWakeThreshold($0) }
-                ), in: -80 ... -20) {
-                    Text(model.strings.wakeAboveTitle(model.settings.wakeThreshold))
+                controlRow(model.strings.wakeAboveLabelTitle) {
+                    stepperValueRow(model.strings.wakeThresholdValueTitle(model.settings.wakeThreshold)) {
+                        Stepper(value: Binding(
+                            get: { model.settings.wakeThreshold },
+                            set: { model.updateWakeThreshold($0) }
+                        ), in: -80 ... -20) {
+                            EmptyView()
+                        }
+                        .labelsHidden()
+                    }
                 }
 
-                Stepper(value: Binding(
-                    get: { Int(model.settings.signalLossTimeout) },
-                    set: { model.updateSignalLossTimeout(Double($0)) }
-                ), in: 3 ... 30) {
-                    Text(model.strings.signalLossTimeoutTitle(Int(model.settings.signalLossTimeout)))
+                controlRow(model.strings.signalLossTimeoutLabelTitle) {
+                    stepperValueRow(model.strings.signalLossTimeoutValueTitle(Int(model.settings.signalLossTimeout))) {
+                        Stepper(value: Binding(
+                            get: { Int(model.settings.signalLossTimeout) },
+                            set: { model.updateSignalLossTimeout(Double($0)) }
+                        ), in: 3 ... 30) {
+                            EmptyView()
+                        }
+                        .labelsHidden()
+                    }
                 }
 
-                Stepper(value: Binding(
-                    get: { model.settings.slidingWindowSize },
-                    set: { model.updateSlidingWindowSize($0) }
-                ), in: 3 ... 10) {
-                    Text(model.strings.slidingWindowTitle(model.settings.slidingWindowSize))
+                controlRow(model.strings.slidingWindowLabelTitle) {
+                    stepperValueRow(model.strings.slidingWindowValueTitle(model.settings.slidingWindowSize)) {
+                        Stepper(value: Binding(
+                            get: { model.settings.slidingWindowSize },
+                            set: { model.updateSlidingWindowSize($0) }
+                        ), in: 3 ... 10) {
+                            EmptyView()
+                        }
+                        .labelsHidden()
+                    }
                 }
             }
 
             Section(model.strings.permissionsAndStartupSectionTitle) {
-                Text(model.strings.bluetoothAccessTitle(status: model.bluetoothPermissionStatusText))
-                Text(model.strings.accessibilityTitle(status: model.accessibilityStatusText))
-                Text(model.strings.loginItemTitle(status: model.loginItemStatusText))
+                statusRow(model.strings.bluetoothAccessLabelTitle, status: model.bluetoothPermissionStatusText)
+                statusRow(model.strings.accessibilityLabelTitle, status: model.accessibilityStatusText)
+                statusRow(model.strings.loginItemLabelTitle, status: model.loginItemStatusText)
 
                 if model.isBluetoothAccessReady == false {
-                    Text(model.strings.bluetoothPermissionHelpText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    detailHint(model.strings.bluetoothPermissionHelpText)
                 }
 
                 if model.isAccessibilityReady == false {
-                    Text(model.strings.accessibilityPermissionHelpText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    detailHint(model.strings.accessibilityPermissionHelpText)
 
-                    Button(model.strings.requestAccessibilityAccessButtonTitle) {
-                        model.requestAccessibilityAccess()
+                    detailRow {
+                        Button(model.strings.requestAccessibilityAccessButtonTitle) {
+                            model.requestAccessibilityAccess()
+                        }
                     }
                 }
 
-                Toggle(
-                    model.strings.launchAtLoginTitle,
-                    isOn: Binding(
+                controlRow(model.strings.launchAtLoginTitle) {
+                    Toggle("", isOn: Binding(
                         get: { model.settings.launchAtLogin },
                         set: { model.setLaunchAtLogin($0) }
-                    )
-                )
+                    ))
+                    .labelsHidden()
+                }
             }
 
             Section(model.strings.diagnosticsSectionTitle) {
@@ -123,6 +150,59 @@ struct SettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             model.refreshConnectedDevices()
+        }
+    }
+
+    private func controlRow<Content: View>(
+        _ label: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .center, spacing: Self.rowSpacing) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: Self.labelColumnWidth, alignment: .trailing)
+
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func detailRow<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .top, spacing: Self.rowSpacing) {
+            Spacer()
+                .frame(width: Self.labelColumnWidth)
+
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func detailHint(_ text: String) -> some View {
+        detailRow {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func statusRow(_ label: String, status: String) -> some View {
+        controlRow(label) {
+            Text(model.strings.localizedSystemStatus(status))
+        }
+    }
+
+    private func stepperValueRow<Content: View>(
+        _ valueText: String,
+        @ViewBuilder stepper: () -> Content
+    ) -> some View {
+        HStack(spacing: Self.rowSpacing) {
+            Text(valueText)
+                .monospacedDigit()
+                .frame(minWidth: 84, alignment: .leading)
+
+            stepper()
         }
     }
 }

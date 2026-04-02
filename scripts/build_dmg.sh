@@ -10,6 +10,7 @@ RW_DMG_PATH="$ROOT/build/Zone-temp.dmg"
 DMG_PATH="$ROOT/build/Zone.dmg"
 
 mkdir -p "$ROOT/build"
+rm -f "$ROOT/build/.DS_Store"
 swift "$ROOT/scripts/generate_app_icon.swift" "$ICONSET"
 xcodegen generate
 xcodebuild \
@@ -36,6 +37,9 @@ cleanup() {
   if [[ -n "$DEVICE_NAME" ]]; then
     hdiutil detach "$DEVICE_NAME" >/dev/null 2>&1 || true
   fi
+
+  rm -rf "$STAGING_PATH"
+  rm -f "$RW_DMG_PATH"
 }
 trap cleanup EXIT
 
@@ -51,3 +55,6 @@ if [[ -n "$DEVICE_NAME" ]]; then
 fi
 
 hdiutil convert "$RW_DMG_PATH" -ov -format UDZO -imagekey zlib-level=9 -o "${DMG_PATH%.dmg}"
+rm -rf "$ARCHIVE_PATH"
+rm -rf "$APP_PATH"
+rm -f "$ROOT/build/.DS_Store"
