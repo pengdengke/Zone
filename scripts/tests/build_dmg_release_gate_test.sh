@@ -15,6 +15,19 @@ cat > "$PROJECT_ROOT/project.yml" <<'EOF'
 name: Zone
 EOF
 
+cat > "$PROJECT_ROOT/App/Info.plist" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+</dict>
+</plist>
+EOF
+
 cat > "$PROJECT_ROOT/scripts/generate_app_icon.swift" <<'EOF'
 print("stub icon generation")
 EOF
@@ -52,6 +65,20 @@ chmod +x "$PROJECT_ROOT/scripts/sign_app_bundle.sh"
 cat > "$TMP_DIR/bin/xcodegen" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+cat > "$PWD/App/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+</dict>
+</plist>
+PLIST
+
 exit 0
 EOF
 chmod +x "$TMP_DIR/bin/xcodegen"
@@ -113,22 +140,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 mkdir -p "$archive_path/Products/Applications/Zone.app/Contents/MacOS"
-cat > "$archive_path/Products/Applications/Zone.app/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key>
-  <string>Zone</string>
-  <key>CFBundleIdentifier</key>
-  <string>com.pengdengke.Zone</string>
-  <key>CFBundleName</key>
-  <string>Zone</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-</dict>
-</plist>
-PLIST
+cp "$PWD/App/Info.plist" "$archive_path/Products/Applications/Zone.app/Contents/Info.plist"
+cp "$PWD/App/Info.plist" "$TMP_CAPTURED_INFO_PLIST"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$archive_path/Products/Applications/Zone.app/Contents/MacOS/Zone"
 chmod +x "$archive_path/Products/Applications/Zone.app/Contents/MacOS/Zone"
 EOF
@@ -183,7 +196,7 @@ fi
 
 (
   cd "$PROJECT_ROOT"
-  TMP_XCODEBUILD_ARGS="$TMP_DIR/xcodebuild-success.txt" PATH="$TMP_DIR/bin:$PATH" CURL_MODE=success ./scripts/build_dmg.sh
+  TMP_XCODEBUILD_ARGS="$TMP_DIR/xcodebuild-success.txt" TMP_CAPTURED_INFO_PLIST="$TMP_DIR/captured-info.plist" PATH="$TMP_DIR/bin:$PATH" CURL_MODE=success ./scripts/build_dmg.sh
 )
 
 [[ -f "$PROJECT_ROOT/build/Zone-v1.2.3.dmg" ]] || {
@@ -198,6 +211,21 @@ grep -q 'MARKETING_VERSION=1.2.3' "$TMP_DIR/xcodebuild-success.txt" || {
 
 grep -q 'CURRENT_PROJECT_VERSION=1.2.3' "$TMP_DIR/xcodebuild-success.txt" || {
   echo "expected CURRENT_PROJECT_VERSION to be passed to xcodebuild"
+  exit 1
+}
+
+[[ "$(plutil -extract CFBundleShortVersionString raw -o - "$TMP_DIR/captured-info.plist")" == "1.2.3" ]] || {
+  echo "expected packaged Info.plist marketing version to be 1.2.3"
+  exit 1
+}
+
+[[ "$(plutil -extract CFBundleVersion raw -o - "$TMP_DIR/captured-info.plist")" == "1.2.3" ]] || {
+  echo "expected packaged Info.plist build version to be 1.2.3"
+  exit 1
+}
+
+grep -q '\$(MARKETING_VERSION)' "$PROJECT_ROOT/App/Info.plist" || {
+  echo "expected source Info.plist to be restored after build"
   exit 1
 }
 

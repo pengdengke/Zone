@@ -6,6 +6,7 @@ GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-pengdengke/Zone}"
 GITHUB_API_BASE_URL="${GITHUB_API_BASE_URL:-https://api.github.com}"
 GITHUB_API_VERSION="${GITHUB_API_VERSION:-2022-11-28}"
 GITHUB_USER_AGENT="${GITHUB_USER_AGENT:-Zone}"
+INFO_PLIST_PATH="$ROOT/App/Info.plist"
 
 resolve_tag_name() {
   local tag_name
@@ -80,6 +81,38 @@ if payload.get("prerelease"):
   fi
 }
 
+backup_source_artifacts() {
+  mkdir -p "$BACKUP_ROOT"
+  cp "$INFO_PLIST_PATH" "$INFO_PLIST_BACKUP"
+  cp -R "$ICONSET" "$ICONSET_BACKUP"
+}
+
+restore_source_artifacts() {
+  if [[ -f "$INFO_PLIST_BACKUP" ]]; then
+    cp "$INFO_PLIST_BACKUP" "$INFO_PLIST_PATH"
+  fi
+
+  if [[ -d "$ICONSET_BACKUP" ]]; then
+    rm -rf "$ICONSET"
+    cp -R "$ICONSET_BACKUP" "$ICONSET"
+  fi
+}
+
+set_plist_string() {
+  local plist_path="$1"
+  local key="$2"
+  local value="$3"
+
+  if ! /usr/libexec/PlistBuddy -c "Set :$key $value" "$plist_path" >/dev/null 2>&1; then
+    /usr/libexec/PlistBuddy -c "Add :$key string $value" "$plist_path" >/dev/null
+  fi
+}
+
+stamp_release_version() {
+  set_plist_string "$INFO_PLIST_PATH" "CFBundleShortVersionString" "$MARKETING_VERSION"
+  set_plist_string "$INFO_PLIST_PATH" "CFBundleVersion" "$MARKETING_VERSION"
+}
+
 TAG_NAME="$(resolve_tag_name)"
 MARKETING_VERSION="$(normalize_version_from_tag "$TAG_NAME")"
 ICONSET="$ROOT/App/Resources/Assets.xcassets/AppIcon.appiconset"
@@ -88,12 +121,35 @@ APP_PATH="$ROOT/build/Zone.app"
 STAGING_PATH="$ROOT/build/Zone-dmg-root"
 RW_DMG_PATH="$ROOT/build/Zone-${TAG_NAME}-temp.dmg"
 DMG_PATH="$ROOT/build/Zone-${TAG_NAME}.dmg"
+BACKUP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/zone-build-source.XXXXXX")"
+INFO_PLIST_BACKUP="$BACKUP_ROOT/Info.plist"
+ICONSET_BACKUP="$BACKUP_ROOT/AppIcon.appiconset"
+DEVICE_NAME=""
+
+cleanup() {
+  local exit_code=$?
+  trap - EXIT
+  set +e
+
+  if [[ -n "$DEVICE_NAME" ]]; then
+    hdiutil detach "$DEVICE_NAME" >/dev/null 2>&1 || true
+  fi
+
+  restore_source_artifacts
+  rm -rf "$STAGING_PATH"
+  rm -f "$RW_DMG_PATH"
+  rm -rf "$BACKUP_ROOT"
+  exit "$exit_code"
+}
+trap cleanup EXIT
 
 mkdir -p "$ROOT/build"
 rm -f "$ROOT/build/.DS_Store"
+backup_source_artifacts
 require_formal_release_for_tag "$TAG_NAME"
 swift "$ROOT/scripts/generate_app_icon.swift" "$ICONSET"
 xcodegen generate --spec "$ROOT/project.yml"
+stamp_release_version
 xcodebuild \
   -project "$ROOT/Zone.xcodeproj" \
   -scheme Zone \
@@ -115,17 +171,6 @@ rm -f "$RW_DMG_PATH"
 rm -f "$DMG_PATH"
 "$ROOT/scripts/prepare_dmg_layout.sh" "$APP_PATH" "$STAGING_PATH"
 hdiutil create -volname Zone -srcfolder "$STAGING_PATH" -ov -format UDRW "$RW_DMG_PATH"
-
-DEVICE_NAME=""
-cleanup() {
-  if [[ -n "$DEVICE_NAME" ]]; then
-    hdiutil detach "$DEVICE_NAME" >/dev/null 2>&1 || true
-  fi
-
-  rm -rf "$STAGING_PATH"
-  rm -f "$RW_DMG_PATH"
-}
-trap cleanup EXIT
 
 ATTACH_OUTPUT="$(hdiutil attach -readwrite -noverify -noautoopen "$RW_DMG_PATH")"
 DEVICE_NAME="$(printf '%s\n' "$ATTACH_OUTPUT" | "$ROOT/scripts/resolve_attached_dmg_device.sh")"
