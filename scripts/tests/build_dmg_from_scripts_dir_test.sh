@@ -15,6 +15,19 @@ cat > "$PROJECT_ROOT/project.yml" <<'EOF'
 name: Zone
 EOF
 
+cat > "$PROJECT_ROOT/App/Info.plist" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+</dict>
+</plist>
+EOF
+
 cat > "$PROJECT_ROOT/scripts/generate_app_icon.swift" <<'EOF'
 print("stub icon generation")
 EOF
