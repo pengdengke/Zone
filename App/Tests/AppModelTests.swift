@@ -74,6 +74,9 @@ final class TestBluetoothRepository: BluetoothRepository {
     }
 
     var bluetoothPermissionStatusText: String { bluetoothPermissionStatusValue }
+    var bleReading: BluetoothDeviceReading? { nil }
+    func startBLEFallback(for device: SelectedDevice) {}
+    func stopBLEFallback() {}
 }
 
 final class TestSystemActions: SystemActionPerforming {
@@ -191,6 +194,9 @@ final class SequenceBluetoothRepository: BluetoothRepository {
     }
 
     var bluetoothPermissionStatusText: String { "Allowed" }
+    var bleReading: BluetoothDeviceReading? { nil }
+    func startBLEFallback(for device: SelectedDevice) {}
+    func stopBLEFallback() {}
 }
 
 final class FailThenSucceedLockSystemActions: SystemActionPerforming {
