@@ -225,6 +225,16 @@ struct AppStrings {
         isChinese ? "登录时启动" : "Launch at login"
     }
 
+    var bleWakeToggleLabel: String {
+        isChinese ? "BLE 回程唤醒" : "BLE Wake on Return"
+    }
+
+    var bleWakeDescription: String {
+        isChinese
+            ? "锁屏后使用 BLE 扫描检测设备返回。可能会增加蓝牙功耗。"
+            : "Use BLE scanning to detect your return after screen lock. May increase Bluetooth power usage."
+    }
+
     var diagnosticsSectionTitle: String {
         isChinese ? "诊断" : "Diagnostics"
     }

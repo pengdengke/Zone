@@ -53,6 +53,9 @@ protocol BluetoothRepository {
     func connectedDevices() -> [BluetoothDeviceSummary]
     func currentReading(for device: SelectedDevice) -> BluetoothDeviceReading?
     var bluetoothPermissionStatusText: String { get }
+    var bleReading: BluetoothDeviceReading? { get }
+    func startBLEFallback(for device: SelectedDevice)
+    func stopBLEFallback()
 }
 
 final class LiveBluetoothPermissionController: NSObject, BluetoothPermissionControlling, CBCentralManagerDelegate {
@@ -88,9 +91,14 @@ final class LiveBluetoothPermissionController: NSObject, BluetoothPermissionCont
 
 final class MacBluetoothRepository: BluetoothRepository {
     private let permissionController: BluetoothPermissionControlling
+    private let bleScanner: BLEScanning
 
-    init(permissionController: BluetoothPermissionControlling = LiveBluetoothPermissionController()) {
+    init(
+        permissionController: BluetoothPermissionControlling = LiveBluetoothPermissionController(),
+        bleScanner: BLEScanning = BLEScanner()
+    ) {
         self.permissionController = permissionController
+        self.bleScanner = bleScanner
     }
 
     func connectedDevices() -> [BluetoothDeviceSummary] {
@@ -125,6 +133,19 @@ final class MacBluetoothRepository: BluetoothRepository {
         permissionController.status.statusText
     }
 
+    var bleReading: BluetoothDeviceReading? {
+        guard let ble = bleScanner.latestReading else { return nil }
+        return BluetoothDeviceReading(isConnected: true, rawRSSI: ble.rssi)
+    }
+
+    func startBLEFallback(for device: SelectedDevice) {
+        bleScanner.startScanning(forDeviceName: device.displayName)
+    }
+
+    func stopBLEFallback() {
+        bleScanner.stopScanning()
+    }
+
     private func allKnownDevices() -> [IOBluetoothDevice] {
         (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]) ?? []
     }
@@ -154,4 +175,7 @@ struct PreviewBluetoothRepository: BluetoothRepository {
     func connectedDevices() -> [BluetoothDeviceSummary] { [] }
     func currentReading(for device: SelectedDevice) -> BluetoothDeviceReading? { nil }
     var bluetoothPermissionStatusText: String { "Unknown" }
+    var bleReading: BluetoothDeviceReading? { nil }
+    func startBLEFallback(for device: SelectedDevice) {}
+    func stopBLEFallback() {}
 }

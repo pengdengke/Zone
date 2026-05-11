@@ -59,6 +59,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
     public var signalLossTimeout: TimeInterval
     public var slidingWindowSize: Int
     public var launchAtLogin: Bool
+    public var bleWakeEnabled: Bool
 
     public init(
         selectedDevice: SelectedDevice?,
@@ -67,7 +68,8 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         wakeThreshold: Int,
         signalLossTimeout: TimeInterval,
         slidingWindowSize: Int,
-        launchAtLogin: Bool
+        launchAtLogin: Bool,
+        bleWakeEnabled: Bool = false
     ) {
         self.selectedDevice = selectedDevice
         self.language = language
@@ -76,6 +78,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         self.signalLossTimeout = signalLossTimeout
         self.slidingWindowSize = slidingWindowSize
         self.launchAtLogin = launchAtLogin
+        self.bleWakeEnabled = bleWakeEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -86,6 +89,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         case signalLossTimeout
         case slidingWindowSize
         case launchAtLogin
+        case bleWakeEnabled
     }
 
     public init(from decoder: any Decoder) throws {
@@ -111,6 +115,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         signalLossTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .signalLossTimeout) ?? ZoneSettings.default.signalLossTimeout
         slidingWindowSize = try container.decodeIfPresent(Int.self, forKey: .slidingWindowSize) ?? ZoneSettings.default.slidingWindowSize
         launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? ZoneSettings.default.launchAtLogin
+        bleWakeEnabled = try container.decodeIfPresent(Bool.self, forKey: .bleWakeEnabled) ?? ZoneSettings.default.bleWakeEnabled
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -122,6 +127,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         try container.encode(signalLossTimeout, forKey: .signalLossTimeout)
         try container.encode(slidingWindowSize, forKey: .slidingWindowSize)
         try container.encode(launchAtLogin, forKey: .launchAtLogin)
+        try container.encode(bleWakeEnabled, forKey: .bleWakeEnabled)
     }
 
     public static let `default` = ZoneSettings(
@@ -131,6 +137,7 @@ public struct ZoneSettings: Codable, Equatable, Sendable {
         wakeThreshold: -55,
         signalLossTimeout: 10,
         slidingWindowSize: 5,
-        launchAtLogin: false
+        launchAtLogin: false,
+        bleWakeEnabled: false
     )
 }
