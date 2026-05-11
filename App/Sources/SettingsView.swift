@@ -9,6 +9,7 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
+        ScrollView {
         Form {
             Section(model.strings.languageSectionTitle) {
                 controlRow(model.strings.languagePickerTitle) {
@@ -178,6 +179,7 @@ struct SettingsView: View {
             }
         }
         .padding(16)
+        }
         .onAppear {
             model.refreshConnectedDevices()
         }

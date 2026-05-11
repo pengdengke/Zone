@@ -378,6 +378,18 @@ final class AppModel: ObservableObject {
         }
 
         latestRSSIText = "--"
+        if settings.bleWakeEnabled, let bleReading = bluetoothRepository.bleReading,
+           let rssi = bleReading.rawRSSI, rssi < 0 {
+            latestRSSIText = "\(rssi) dBm (BLE)"
+            record(.info, "BLE fallback RSSI sample: \(rssi) dBm")
+            if let transition = boundaryEngine.ingest(rssi: rssi, at: date) {
+                apply(transition)
+            } else if boundaryEngine.state != .locked {
+                statusLine = monitoringStatus()
+            }
+            return
+        }
+
         if reading.isConnected, boundaryEngine.missingSince == nil {
             record(.warning, "Connected device did not expose a usable RSSI sample.")
         }
