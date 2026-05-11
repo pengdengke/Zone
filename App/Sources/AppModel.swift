@@ -63,6 +63,9 @@ final class AppModel: ObservableObject {
 
         if loadedSettings.selectedDevice != nil {
             startPolling()
+            if loadedSettings.bleWakeEnabled {
+                bluetoothRepository.startBLEFallback(for: loadedSettings.selectedDevice!)
+            }
         }
 
         if autoCheckForUpdates {
@@ -165,11 +168,15 @@ final class AppModel: ObservableObject {
         statusLine = "Monitoring"
         record(.info, "Selected device: \(match.displayName)")
         startPolling()
+        if settings.bleWakeEnabled {
+            bluetoothRepository.startBLEFallback(for: settings.selectedDevice!)
+        }
     }
 
     func clearSelectedDevice() {
         pollTimer?.invalidate()
         pollTimer = nil
+        bluetoothRepository.stopBLEFallback()
         settings.selectedDevice = nil
         latestRSSIText = "--"
         boundaryEngine = BoundaryEngine(settings: settings)
@@ -207,6 +214,17 @@ final class AppModel: ObservableObject {
         guard settings.language != language else { return }
         settings.language = language
         persistSettings(rebuildBoundaryEngine: false)
+    }
+
+    func setBLEWakeEnabled(_ enabled: Bool) {
+        settings.bleWakeEnabled = enabled
+        persistSettings(rebuildBoundaryEngine: false)
+        if enabled, let selected = settings.selectedDevice {
+            bluetoothRepository.startBLEFallback(for: selected)
+        } else {
+            bluetoothRepository.stopBLEFallback()
+        }
+        record(.info, "BLE wake on return: \(enabled ? "enabled" : "disabled")")
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -326,6 +344,18 @@ final class AppModel: ObservableObject {
         }
 
         guard let reading = bluetoothRepository.currentReading(for: selected) else {
+            if settings.bleWakeEnabled, let bleReading = bluetoothRepository.bleReading,
+               let rssi = bleReading.rawRSSI, rssi < 0 {
+                latestRSSIText = "\(rssi) dBm (BLE)"
+                record(.info, "BLE fallback RSSI sample: \(rssi) dBm")
+                if let transition = boundaryEngine.ingest(rssi: rssi, at: date) {
+                    apply(transition)
+                } else if boundaryEngine.state != .locked {
+                    statusLine = monitoringStatus()
+                }
+                return
+            }
+
             latestRSSIText = "--"
             if let transition = boundaryEngine.noteMissingSignal(at: date) {
                 apply(transition)

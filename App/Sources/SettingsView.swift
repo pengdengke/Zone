@@ -158,6 +158,16 @@ struct SettingsView: View {
                     ))
                     .labelsHidden()
                 }
+
+                controlRow(model.strings.bleWakeToggleLabel) {
+                    Toggle("", isOn: Binding(
+                        get: { model.settings.bleWakeEnabled },
+                        set: { model.setBLEWakeEnabled($0) }
+                    ))
+                    .labelsHidden()
+                }
+
+                detailHint(model.strings.bleWakeDescription)
             }
 
             Section(model.strings.diagnosticsSectionTitle) {
