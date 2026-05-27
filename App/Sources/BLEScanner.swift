@@ -47,6 +47,9 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
     /// Time interval after which a BLE reading is considered stale (seconds)
     static let readingTimeout: TimeInterval = 5
 
+    /// Time interval after which the matched peripheral ID is reset (seconds)
+    static let peripheralResetTimeout: TimeInterval = 10
+
     init(centralManager: CBCentralManaging? = nil) {
         self.centralManager = centralManager ?? CBCentralManager(delegate: nil, queue: nil)
         super.init()
@@ -103,9 +106,18 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
         let peripheralName = peripheral.name
             ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
 
-        if let matchedID = matchedPeripheralID {
-            guard peripheralID == matchedID else { return }
-        } else {
+        if let matchedID = matchedPeripheralID, peripheralID != matchedID {
+            lock.lock()
+            let isStale = lastReadingTime.map { Date().timeIntervalSince($0) > Self.peripheralResetTimeout } ?? true
+            lock.unlock()
+            if isStale {
+                matchedPeripheralID = nil
+            } else {
+                return
+            }
+        }
+
+        if matchedPeripheralID == nil {
             guard let peripheralName, let targetName = targetDeviceName else { return }
             guard peripheralName.localizedCaseInsensitiveCompare(targetName) == .orderedSame else { return }
             matchedPeripheralID = peripheralID

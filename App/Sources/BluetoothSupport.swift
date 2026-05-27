@@ -94,6 +94,8 @@ final class LiveBluetoothPermissionController: NSObject, BluetoothPermissionCont
 final class MacBluetoothRepository: BluetoothRepository {
     private let permissionController: BluetoothPermissionControlling
     private let bleScanner: BLEScanning
+    private var lastReconnectAttempt: [String: Date] = [:]
+    private let reconnectCooldown: TimeInterval = 10
 
     init(
         permissionController: BluetoothPermissionControlling = LiveBluetoothPermissionController(),
@@ -123,6 +125,11 @@ final class MacBluetoothRepository: BluetoothRepository {
         }
 
         let isConnected = match.isConnected()
+
+        if !isConnected {
+            attemptReconnect(match)
+        }
+
         let rawRSSI = isConnected ? Int(match.rawRSSI()) : nil
         let usableRSSI = Self.normalizedRSSI(rawRSSI)
 
@@ -164,6 +171,17 @@ final class MacBluetoothRepository: BluetoothRepository {
 
     private func allKnownDevices() -> [IOBluetoothDevice] {
         (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]) ?? []
+    }
+
+    private func attemptReconnect(_ device: IOBluetoothDevice) {
+        guard let address = device.addressString else { return }
+        let now = Date()
+        if let lastAttempt = lastReconnectAttempt[address],
+           now.timeIntervalSince(lastAttempt) < reconnectCooldown {
+            return
+        }
+        lastReconnectAttempt[address] = now
+        device.openConnection()
     }
 
     private var isAccessAllowed: Bool {
