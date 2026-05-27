@@ -26,6 +26,7 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
     private let centralManager: CBCentralManaging
     private var targetDeviceName: String?
     private var matchedPeripheralID: UUID?
+    private let lock = NSLock()
 
     private(set) var latestReading: BLEReading?
     var onReadingUpdated: ((BLEReading) -> Void)?
@@ -39,7 +40,9 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
     func startScanning(forDeviceName name: String) {
         targetDeviceName = name
         matchedPeripheralID = nil
-        latestReading = nil
+        lock.withLock {
+            latestReading = nil
+        }
 
         guard centralManager.state == .poweredOn else { return }
 
@@ -53,7 +56,9 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
         centralManager.stopScan()
         targetDeviceName = nil
         matchedPeripheralID = nil
-        latestReading = nil
+        lock.withLock {
+            latestReading = nil
+        }
     }
 
     // MARK: - CBCentralManagerDelegate
@@ -93,7 +98,9 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
             rssi: rssiValue,
             deviceName: peripheralName
         )
-        latestReading = reading
+        lock.withLock {
+            latestReading = reading
+        }
         onReadingUpdated?(reading)
     }
 }

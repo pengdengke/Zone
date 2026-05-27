@@ -47,6 +47,7 @@ struct BluetoothDeviceSummary: Identifiable, Equatable {
 struct BluetoothDeviceReading: Equatable {
     let isConnected: Bool
     let rawRSSI: Int?
+    let deviceName: String?
 }
 
 protocol BluetoothRepository {
@@ -125,7 +126,8 @@ final class MacBluetoothRepository: BluetoothRepository {
 
         return BluetoothDeviceReading(
             isConnected: isConnected,
-            rawRSSI: usableRSSI
+            rawRSSI: usableRSSI,
+            deviceName: match.nameOrAddress
         )
     }
 
@@ -135,7 +137,7 @@ final class MacBluetoothRepository: BluetoothRepository {
 
     var bleReading: BluetoothDeviceReading? {
         guard let ble = bleScanner.latestReading else { return nil }
-        return BluetoothDeviceReading(isConnected: true, rawRSSI: ble.rssi)
+        return BluetoothDeviceReading(isConnected: true, rawRSSI: ble.rssi, deviceName: ble.deviceName)
     }
 
     func startBLEFallback(for device: SelectedDevice) {
