@@ -2,7 +2,7 @@
 
 **Logged**: 2026-03-31T18:00:00+08:00
 **Priority**: high
-**Status**: pending
+**Status**: resolved
 **Area**: infra
 
 ### Summary
@@ -27,8 +27,11 @@ remove the file manually to continue.
 ### Suggested Fix
 Check whether another git process is active. If no git process owns the lock, remove the stale `.git/index.lock` file and retry the commit.
 
+### Resolution
+This was a transient issue. The lock file was removed and the commit succeeded.
+
 ### Metadata
-- Reproducible: unknown
+- Reproducible: no
 - Related Files: .git/index.lock
 
 ---
@@ -37,7 +40,7 @@ Check whether another git process is active. If no git process owns the lock, re
 
 **Logged**: 2026-03-31T18:45:00+08:00
 **Priority**: medium
-**Status**: pending
+**Status**: resolved
 **Area**: infra
 
 ### Summary
@@ -56,6 +59,9 @@ fatal: Invalid ignored mode '.traditional'
 ### Suggested Fix
 Use a valid `--ignored` mode value without a leading dot.
 
+### Resolution
+Documentation error. The correct syntax is `--ignored=traditional` without the leading dot.
+
 ### Metadata
 - Reproducible: yes
 - Related Files: .learnings/ERRORS.md
@@ -66,11 +72,11 @@ Use a valid `--ignored` mode value without a leading dot.
 
 **Logged**: 2026-04-01T02:24:20Z
 **Priority**: medium
-**Status**: pending
+**Status**: resolved
 **Area**: tests
 
 ### Summary
-`xcodebuild test` failed when the command targeted `ZoneCoreTests` because that package test target is not part of the app scheme's test plan.
+`xcodebuild test` failed when the command targeted `ZoneCoreTests` because that package test target is not part of the app scheme’s test plan.
 
 ### Error
 ```text
@@ -78,15 +84,50 @@ xcodebuild: error: Failed to build project Zone with scheme Zone.: Tests in the 
 ```
 
 ### Context
-- Command attempted: `xcodebuild -project Zone.xcodeproj -scheme Zone -destination 'platform=macOS' test -only-testing:ZoneTests/AppModelTests -only-testing:ZoneCoreTests/BoundaryEngineTests`
+- Command attempted: `xcodebuild -project Zone.xcodeproj -scheme Zone -destination ‘platform=macOS’ test -only-testing:ZoneTests/AppModelTests -only-testing:ZoneCoreTests/BoundaryEngineTests`
 - Repository layout: `ZoneCoreTests` are exercised through the Swift package, while the Xcode scheme currently only exposes `ZoneTests`
 - Follow-up verification succeeded by splitting the commands into `swift test` for package tests and `xcodebuild ... -only-testing:ZoneTests/AppModelTests` for app tests
 
 ### Suggested Fix
 Keep package verification on `swift test` unless the Xcode scheme is updated to include `ZoneCoreTests` in its test plan.
 
+### Resolution
+This is by design. Use `swift test` for ZoneCore tests and `xcodebuild test` for app tests.
+
 ### Metadata
 - Reproducible: yes
 - Related Files: Zone.xcodeproj
+
+---
+
+## [ERR-20260408-001] xcrun-swift-iobluetooth-tcc-crash
+
+**Logged**: 2026-04-08T13:53:19+0800
+**Priority**: medium
+**Status**: resolved
+**Area**: infra
+
+### Summary
+Ad hoc `xcrun swift` verification crashed with a TCC privacy violation as soon as it touched `IOBluetooth`.
+
+### Error
+```text
+TCC __TCC_CRASHING_DUE_TO_PRIVACY_VIOLATION__
+```
+
+### Context
+- Command attempted: `xcrun swift -e 'import Foundation; import IOBluetooth; ...'`
+- Goal: quickly validate whether `IOBluetoothDevice.register(forConnectNotifications:selector:)` is callable from Swift
+- Environment: local macOS development shell outside the app sandbox and normal app permission flow
+
+### Suggested Fix
+Prefer validating Bluetooth behavior from the actual app target or a small signed test harness with the expected Bluetooth usage description and permission flow, instead of from transient `xcrun swift` processes.
+
+### Resolution
+This is expected behavior. Bluetooth operations require proper app entitlements and TCC approval. Use the app target or test harness for Bluetooth validation.
+
+### Metadata
+- Reproducible: yes
+- Related Files: App/Sources/BluetoothSupport.swift
 
 ---

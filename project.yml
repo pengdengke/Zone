@@ -22,13 +22,15 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Zone
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSUIElement: true
         NSBluetoothAlwaysUsageDescription: Zone reads Bluetooth signal strength from your selected device to decide when to lock or wake your Mac.
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        CURRENT_PROJECT_VERSION: "1.0.0"
-        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1.3.0"
+        MARKETING_VERSION: "1.3.0"
         SWIFT_VERSION: "6.0"
     dependencies:
       - package: ZoneCore

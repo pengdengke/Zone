@@ -63,6 +63,9 @@ final class AppModel: ObservableObject {
 
         if loadedSettings.selectedDevice != nil {
             startPolling()
+            if loadedSettings.bleWakeEnabled {
+                bluetoothRepository.startBLEFallback(for: loadedSettings.selectedDevice!)
+            }
         }
 
         if autoCheckForUpdates {
@@ -165,11 +168,15 @@ final class AppModel: ObservableObject {
         statusLine = "Monitoring"
         record(.info, "Selected device: \(match.displayName)")
         startPolling()
+        if settings.bleWakeEnabled {
+            bluetoothRepository.startBLEFallback(for: settings.selectedDevice!)
+        }
     }
 
     func clearSelectedDevice() {
         pollTimer?.invalidate()
         pollTimer = nil
+        bluetoothRepository.stopBLEFallback()
         settings.selectedDevice = nil
         latestRSSIText = "--"
         boundaryEngine = BoundaryEngine(settings: settings)
@@ -207,6 +214,17 @@ final class AppModel: ObservableObject {
         guard settings.language != language else { return }
         settings.language = language
         persistSettings(rebuildBoundaryEngine: false)
+    }
+
+    func setBLEWakeEnabled(_ enabled: Bool) {
+        settings.bleWakeEnabled = enabled
+        persistSettings(rebuildBoundaryEngine: false)
+        if enabled, let selected = settings.selectedDevice {
+            bluetoothRepository.startBLEFallback(for: selected)
+        } else {
+            bluetoothRepository.stopBLEFallback()
+        }
+        record(.info, "BLE wake on return: \(enabled ? "enabled" : "disabled")")
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -326,6 +344,19 @@ final class AppModel: ObservableObject {
         }
 
         guard let reading = bluetoothRepository.currentReading(for: selected) else {
+            if settings.bleWakeEnabled, let bleReading = bluetoothRepository.bleReading,
+               isBLEReadingMatched(bleReading, for: selected),
+               let rssi = bleReading.rawRSSI, rssi < 0 {
+                latestRSSIText = "\(rssi) dBm (BLE)"
+                record(.info, "BLE fallback RSSI sample: \(rssi) dBm")
+                if let transition = boundaryEngine.ingest(rssi: rssi, at: date) {
+                    apply(transition)
+                } else if boundaryEngine.state != .locked {
+                    statusLine = monitoringStatus()
+                }
+                return
+            }
+
             latestRSSIText = "--"
             if let transition = boundaryEngine.noteMissingSignal(at: date) {
                 apply(transition)
@@ -338,7 +369,11 @@ final class AppModel: ObservableObject {
 
         if reading.isConnected, let rawRSSI = reading.rawRSSI, rawRSSI < 0 {
             latestRSSIText = "\(rawRSSI) dBm"
-            record(.info, "RSSI sample: \(rawRSSI) dBm")
+            if boundaryEngine.state == .unknown {
+                record(.info, "RSSI sample: \(rawRSSI) dBm (calibrating)")
+            } else {
+                record(.info, "RSSI sample: \(rawRSSI) dBm")
+            }
             if let transition = boundaryEngine.ingest(rssi: rawRSSI, at: date) {
                 apply(transition)
             } else if boundaryEngine.state != .locked {
@@ -347,7 +382,25 @@ final class AppModel: ObservableObject {
             return
         }
 
+        if reading.isConnected && reading.rawRSSI == nil {
+            let debugInfo = bluetoothRepository.debugRSSI(for: selected)
+            record(.warning, "Device connected but no usable RSSI (raw value filtered out). \(debugInfo)")
+        }
+
         latestRSSIText = "--"
+        if settings.bleWakeEnabled, let bleReading = bluetoothRepository.bleReading,
+           isBLEReadingMatched(bleReading, for: selected),
+           let rssi = bleReading.rawRSSI, rssi < 0 {
+            latestRSSIText = "\(rssi) dBm (BLE)"
+            record(.info, "BLE fallback RSSI sample: \(rssi) dBm")
+            if let transition = boundaryEngine.ingest(rssi: rssi, at: date) {
+                apply(transition)
+            } else if boundaryEngine.state != .locked {
+                statusLine = monitoringStatus()
+            }
+            return
+        }
+
         if reading.isConnected, boundaryEngine.missingSince == nil {
             record(.warning, "Connected device did not expose a usable RSSI sample.")
         }
@@ -403,14 +456,15 @@ final class AppModel: ObservableObject {
     }
 
     private func record(_ level: DiagnosticEntry.Level, _ message: String) {
+        let now = Date()
         if let latestEntry = diagnosticsBuffer.entries.first,
            latestEntry.level == level,
-           latestEntry.message == message {
-            diagnostics = diagnosticsBuffer.entries.map(Self.formatDiagnostic)
+           latestEntry.message == message,
+           now.timeIntervalSince(latestEntry.timestamp) < 30 {
             return
         }
 
-        diagnosticsBuffer.append(level: level, message: message)
+        diagnosticsBuffer.append(level: level, message: message, at: now)
         diagnostics = diagnosticsBuffer.entries.map(Self.formatDiagnostic)
     }
 
@@ -419,7 +473,11 @@ final class AppModel: ObservableObject {
         if rebuildBoundaryEngine {
             boundaryEngine = BoundaryEngine(settings: settings)
         }
-        try? settingsStore.save(settings)
+        do {
+            try settingsStore.save(settings)
+        } catch {
+            record(.error, "Failed to save settings: \(error)")
+        }
     }
 
     private func restoreBoundaryState(to state: BoundaryState) {
@@ -431,6 +489,11 @@ final class AppModel: ObservableObject {
         case .unknown:
             boundaryEngine = BoundaryEngine(settings: settings)
         }
+    }
+
+    private func isBLEReadingMatched(_ reading: BluetoothDeviceReading, for device: SelectedDevice) -> Bool {
+        guard let bleName = reading.deviceName else { return false }
+        return bleName.localizedCaseInsensitiveCompare(device.displayName) == .orderedSame
     }
 
     private func monitoringStatus() -> String {

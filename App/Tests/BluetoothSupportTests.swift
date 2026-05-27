@@ -2,6 +2,23 @@ import XCTest
 @testable import Zone
 import ZoneCore
 
+final class MockBLEScanner: BLEScanning {
+    var latestReading: BLEReading?
+    var freshReading: BLEReading?
+    var startScanCallCount = 0
+    var stopScanCallCount = 0
+    var lastDeviceName: String?
+
+    func startScanning(forDeviceName name: String) {
+        startScanCallCount += 1
+        lastDeviceName = name
+    }
+
+    func stopScanning() {
+        stopScanCallCount += 1
+    }
+}
+
 final class TestBluetoothPermissionController: BluetoothPermissionControlling {
     private(set) var prepareCalls = 0
     var status: BluetoothAuthorizationStatus
@@ -42,5 +59,71 @@ final class BluetoothSupportTests: XCTestCase {
         XCTAssertEqual(permissionController.prepareCalls, 1)
         XCTAssertNil(reading)
         XCTAssertEqual(repository.bluetoothPermissionStatusText, "Restricted")
+    }
+
+    func testBLEReadingIsNilBeforeFallbackStarted() {
+        let permissionController = TestBluetoothPermissionController(status: .allowed)
+        let mockBLE = MockBLEScanner()
+        let repository = MacBluetoothRepository(
+            permissionController: permissionController,
+            bleScanner: mockBLE
+        )
+
+        XCTAssertNil(repository.bleReading)
+    }
+
+    func testStartBLEFallbackCallsScanner() {
+        let permissionController = TestBluetoothPermissionController(status: .allowed)
+        let mockBLE = MockBLEScanner()
+        let repository = MacBluetoothRepository(
+            permissionController: permissionController,
+            bleScanner: mockBLE
+        )
+        let device = SelectedDevice(
+            stableID: "token",
+            addressString: "AA-BB",
+            displayName: "My iPhone",
+            majorDeviceClass: 2
+        )
+
+        repository.startBLEFallback(for: device)
+
+        XCTAssertEqual(mockBLE.startScanCallCount, 1)
+        XCTAssertEqual(mockBLE.lastDeviceName, "My iPhone")
+    }
+
+    func testStopBLEFallbackCallsScanner() {
+        let permissionController = TestBluetoothPermissionController(status: .allowed)
+        let mockBLE = MockBLEScanner()
+        let repository = MacBluetoothRepository(
+            permissionController: permissionController,
+            bleScanner: mockBLE
+        )
+
+        repository.stopBLEFallback()
+
+        XCTAssertEqual(mockBLE.stopScanCallCount, 1)
+    }
+
+    func testBLEReadingReturnsReadingFromScanner() {
+        let permissionController = TestBluetoothPermissionController(status: .allowed)
+        let mockBLE = MockBLEScanner()
+        let bleReading = BLEReading(
+            peripheralID: UUID(),
+            rssi: -55,
+            deviceName: "iPhone"
+        )
+        mockBLE.latestReading = bleReading
+        mockBLE.freshReading = bleReading
+        let repository = MacBluetoothRepository(
+            permissionController: permissionController,
+            bleScanner: mockBLE
+        )
+
+        let reading = repository.bleReading
+
+        XCTAssertNotNil(reading)
+        XCTAssertEqual(reading?.rawRSSI, -55)
+        XCTAssertTrue(reading?.isConnected ?? false)
     }
 }

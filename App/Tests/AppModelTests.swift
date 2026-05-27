@@ -64,7 +64,7 @@ final class TestBluetoothRepository: BluetoothRepository {
     func currentReading(for device: SelectedDevice) -> BluetoothDeviceReading? {
         guard let values = readings[device.stableID], values.isEmpty == false else {
             return connectedDevicesValue.contains(where: { $0.stableID == device.stableID })
-                ? BluetoothDeviceReading(isConnected: true, rawRSSI: -60)
+                ? BluetoothDeviceReading(isConnected: true, rawRSSI: -60, deviceName: "Desk Phone")
                 : nil
         }
 
@@ -74,6 +74,10 @@ final class TestBluetoothRepository: BluetoothRepository {
     }
 
     var bluetoothPermissionStatusText: String { bluetoothPermissionStatusValue }
+    var bleReading: BluetoothDeviceReading? { nil }
+    func startBLEFallback(for device: SelectedDevice) {}
+    func stopBLEFallback() {}
+    func debugRSSI(for device: SelectedDevice) -> String { "Test mode" }
 }
 
 final class TestSystemActions: SystemActionPerforming {
@@ -191,6 +195,10 @@ final class SequenceBluetoothRepository: BluetoothRepository {
     }
 
     var bluetoothPermissionStatusText: String { "Allowed" }
+    var bleReading: BluetoothDeviceReading? { nil }
+    func startBLEFallback(for device: SelectedDevice) {}
+    func stopBLEFallback() {}
+    func debugRSSI(for device: SelectedDevice) -> String { "Test sequence mode" }
 }
 
 final class FailThenSucceedLockSystemActions: SystemActionPerforming {
@@ -629,12 +637,12 @@ final class AppModelTests: XCTestCase {
             ],
             readings: [
                 "token": [
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96)
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96, deviceName: "Desk Phone")
                 ]
             ]
         )
@@ -672,15 +680,15 @@ final class AppModelTests: XCTestCase {
             ],
             readings: [
                 "token": [
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40)
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40, deviceName: "Desk Phone")
                 ]
             ]
         )
@@ -719,12 +727,12 @@ final class AppModelTests: XCTestCase {
             ],
             readings: [
                 "token": [
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: 0),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: 0),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: 0)
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: 0, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: 0, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: 0, deviceName: "Desk Phone")
                 ]
             ]
         )
@@ -764,7 +772,7 @@ final class AppModelTests: XCTestCase {
             ],
             readings: [
                 "token": [
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: nil)
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: nil, deviceName: "Desk Phone")
                 ]
             ]
         )
@@ -796,9 +804,9 @@ final class AppModelTests: XCTestCase {
         let repository = SequenceBluetoothRepository(
             connected: [device],
             readings: [
-                BluetoothDeviceReading(isConnected: true, rawRSSI: -57),
-                BluetoothDeviceReading(isConnected: true, rawRSSI: -58),
-                BluetoothDeviceReading(isConnected: true, rawRSSI: -56),
+                BluetoothDeviceReading(isConnected: true, rawRSSI: -57, deviceName: "Desk Phone"),
+                BluetoothDeviceReading(isConnected: true, rawRSSI: -58, deviceName: "Desk Phone"),
+                BluetoothDeviceReading(isConnected: true, rawRSSI: -56, deviceName: "Desk Phone"),
                 nil,
                 nil,
                 nil
@@ -838,9 +846,9 @@ final class AppModelTests: XCTestCase {
         let repository = SequenceBluetoothRepository(
             connected: [device],
             readings: [
-                BluetoothDeviceReading(isConnected: true, rawRSSI: -57),
-                BluetoothDeviceReading(isConnected: true, rawRSSI: -58),
-                BluetoothDeviceReading(isConnected: true, rawRSSI: -56),
+                BluetoothDeviceReading(isConnected: true, rawRSSI: -57, deviceName: "Desk Phone"),
+                BluetoothDeviceReading(isConnected: true, rawRSSI: -58, deviceName: "Desk Phone"),
+                BluetoothDeviceReading(isConnected: true, rawRSSI: -56, deviceName: "Desk Phone"),
                 nil,
                 nil,
                 nil,
@@ -887,10 +895,10 @@ final class AppModelTests: XCTestCase {
             ],
             readings: [
                 "token": [
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40)
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -40, deviceName: "Desk Phone")
                 ]
             ]
         )
@@ -933,15 +941,15 @@ final class AppModelTests: XCTestCase {
             ],
             readings: [
                 "token": [
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94),
-                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96)
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -50, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -52, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -51, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -92, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -94, deviceName: "Desk Phone"),
+                    BluetoothDeviceReading(isConnected: true, rawRSSI: -96, deviceName: "Desk Phone")
                 ]
             ]
         )
