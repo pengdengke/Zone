@@ -80,4 +80,12 @@ final class BLEScannerTests: XCTestCase {
         scanner.stopScanning()
         XCTAssertNil(scanner.latestReading) // Still nil after stop
     }
+
+    func testPeripheralResetTimeoutValue() {
+        XCTAssertEqual(BLEScanner.peripheralResetTimeout, 10)
+    }
+
+    func testReadingTimeoutValue() {
+        XCTAssertEqual(BLEScanner.readingTimeout, 5)
+    }
 }
