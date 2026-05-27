@@ -369,13 +369,22 @@ final class AppModel: ObservableObject {
 
         if reading.isConnected, let rawRSSI = reading.rawRSSI, rawRSSI < 0 {
             latestRSSIText = "\(rawRSSI) dBm"
-            record(.info, "RSSI sample: \(rawRSSI) dBm")
+            if boundaryEngine.state == .unknown {
+                record(.info, "RSSI sample: \(rawRSSI) dBm (calibrating)")
+            } else {
+                record(.info, "RSSI sample: \(rawRSSI) dBm")
+            }
             if let transition = boundaryEngine.ingest(rssi: rawRSSI, at: date) {
                 apply(transition)
             } else if boundaryEngine.state != .locked {
                 statusLine = monitoringStatus()
             }
             return
+        }
+
+        if reading.isConnected && reading.rawRSSI == nil {
+            let debugInfo = bluetoothRepository.debugRSSI(for: selected)
+            record(.warning, "Device connected but no usable RSSI (raw value filtered out). \(debugInfo)")
         }
 
         latestRSSIText = "--"

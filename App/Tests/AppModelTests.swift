@@ -77,6 +77,7 @@ final class TestBluetoothRepository: BluetoothRepository {
     var bleReading: BluetoothDeviceReading? { nil }
     func startBLEFallback(for device: SelectedDevice) {}
     func stopBLEFallback() {}
+    func debugRSSI(for device: SelectedDevice) -> String { "Test mode" }
 }
 
 final class TestSystemActions: SystemActionPerforming {
@@ -197,6 +198,7 @@ final class SequenceBluetoothRepository: BluetoothRepository {
     var bleReading: BluetoothDeviceReading? { nil }
     func startBLEFallback(for device: SelectedDevice) {}
     func stopBLEFallback() {}
+    func debugRSSI(for device: SelectedDevice) -> String { "Test sequence mode" }
 }
 
 final class FailThenSucceedLockSystemActions: SystemActionPerforming {
