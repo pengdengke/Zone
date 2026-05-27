@@ -9,6 +9,7 @@ struct BLEReading: Equatable {
 
 protocol BLEScanning: AnyObject {
     var latestReading: BLEReading? { get }
+    var freshReading: BLEReading? { get }
     func startScanning(forDeviceName name: String)
     func stopScanning()
 }
@@ -27,9 +28,24 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
     private var targetDeviceName: String?
     private var matchedPeripheralID: UUID?
     private let lock = NSLock()
+    private var lastReadingTime: Date?
 
     private(set) var latestReading: BLEReading?
     var onReadingUpdated: ((BLEReading) -> Void)?
+
+    /// Returns the latest reading only if it's still fresh (within timeout)
+    var freshReading: BLEReading? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let reading = latestReading, let time = lastReadingTime else { return nil }
+        guard Date().timeIntervalSince(time) < Self.readingTimeout else {
+            return nil
+        }
+        return reading
+    }
+
+    /// Time interval after which a BLE reading is considered stale (seconds)
+    static let readingTimeout: TimeInterval = 5
 
     init(centralManager: CBCentralManaging? = nil) {
         self.centralManager = centralManager ?? CBCentralManager(delegate: nil, queue: nil)
@@ -42,6 +58,7 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
         matchedPeripheralID = nil
         lock.withLock {
             latestReading = nil
+            lastReadingTime = nil
         }
 
         guard centralManager.state == .poweredOn else { return }
@@ -58,6 +75,7 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
         matchedPeripheralID = nil
         lock.withLock {
             latestReading = nil
+            lastReadingTime = nil
         }
     }
 
@@ -100,6 +118,7 @@ final class BLEScanner: NSObject, BLEScanning, CBCentralManagerDelegate {
         )
         lock.withLock {
             latestReading = reading
+            lastReadingTime = Date()
         }
         onReadingUpdated?(reading)
     }

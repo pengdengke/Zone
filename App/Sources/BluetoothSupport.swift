@@ -150,7 +150,7 @@ final class MacBluetoothRepository: BluetoothRepository {
     }
 
     var bleReading: BluetoothDeviceReading? {
-        guard let ble = bleScanner.latestReading else { return nil }
+        guard let ble = bleScanner.freshReading else { return nil }
         return BluetoothDeviceReading(isConnected: true, rawRSSI: ble.rssi, deviceName: ble.deviceName)
     }
 
