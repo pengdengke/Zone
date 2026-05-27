@@ -47,6 +47,7 @@ struct BluetoothDeviceSummary: Identifiable, Equatable {
 struct BluetoothDeviceReading: Equatable {
     let isConnected: Bool
     let rawRSSI: Int?
+    let deviceName: String?
 }
 
 protocol BluetoothRepository {
@@ -56,6 +57,7 @@ protocol BluetoothRepository {
     var bleReading: BluetoothDeviceReading? { get }
     func startBLEFallback(for device: SelectedDevice)
     func stopBLEFallback()
+    func debugRSSI(for device: SelectedDevice) -> String
 }
 
 final class LiveBluetoothPermissionController: NSObject, BluetoothPermissionControlling, CBCentralManagerDelegate {
@@ -115,7 +117,8 @@ final class MacBluetoothRepository: BluetoothRepository {
 
     func currentReading(for device: SelectedDevice) -> BluetoothDeviceReading? {
         guard isAccessAllowed else { return nil }
-        guard let match = allKnownDevices().first(where: { $0.addressString == device.addressString }) else {
+        let allDevices = allKnownDevices()
+        guard let match = allDevices.first(where: { $0.addressString == device.addressString }) else {
             return nil
         }
 
@@ -125,8 +128,21 @@ final class MacBluetoothRepository: BluetoothRepository {
 
         return BluetoothDeviceReading(
             isConnected: isConnected,
-            rawRSSI: usableRSSI
+            rawRSSI: usableRSSI,
+            deviceName: match.nameOrAddress
         )
+    }
+
+    func debugRSSI(for device: SelectedDevice) -> String {
+        guard isAccessAllowed else { return "Bluetooth access denied" }
+        let allDevices = allKnownDevices()
+        guard let match = allDevices.first(where: { $0.addressString == device.addressString }) else {
+            return "Device not found in paired list"
+        }
+
+        let isConnected = match.isConnected()
+        let rawRSSI = Int(match.rawRSSI())
+        return "Connected: \(isConnected), Raw RSSI: \(rawRSSI)"
     }
 
     var bluetoothPermissionStatusText: String {
@@ -134,8 +150,8 @@ final class MacBluetoothRepository: BluetoothRepository {
     }
 
     var bleReading: BluetoothDeviceReading? {
-        guard let ble = bleScanner.latestReading else { return nil }
-        return BluetoothDeviceReading(isConnected: true, rawRSSI: ble.rssi)
+        guard let ble = bleScanner.freshReading else { return nil }
+        return BluetoothDeviceReading(isConnected: true, rawRSSI: ble.rssi, deviceName: ble.deviceName)
     }
 
     func startBLEFallback(for device: SelectedDevice) {
@@ -178,4 +194,5 @@ struct PreviewBluetoothRepository: BluetoothRepository {
     var bleReading: BluetoothDeviceReading? { nil }
     func startBLEFallback(for device: SelectedDevice) {}
     func stopBLEFallback() {}
+    func debugRSSI(for device: SelectedDevice) -> String { "Preview mode" }
 }

@@ -4,6 +4,7 @@ import ZoneCore
 
 final class MockBLEScanner: BLEScanning {
     var latestReading: BLEReading?
+    var freshReading: BLEReading?
     var startScanCallCount = 0
     var stopScanCallCount = 0
     var lastDeviceName: String?
@@ -107,11 +108,13 @@ final class BluetoothSupportTests: XCTestCase {
     func testBLEReadingReturnsReadingFromScanner() {
         let permissionController = TestBluetoothPermissionController(status: .allowed)
         let mockBLE = MockBLEScanner()
-        mockBLE.latestReading = BLEReading(
+        let bleReading = BLEReading(
             peripheralID: UUID(),
             rssi: -55,
             deviceName: "iPhone"
         )
+        mockBLE.latestReading = bleReading
+        mockBLE.freshReading = bleReading
         let repository = MacBluetoothRepository(
             permissionController: permissionController,
             bleScanner: mockBLE

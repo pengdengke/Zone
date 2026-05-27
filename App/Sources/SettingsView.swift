@@ -9,6 +9,7 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
+        ScrollView {
         Form {
             Section(model.strings.languageSectionTitle) {
                 controlRow(model.strings.languagePickerTitle) {
@@ -51,7 +52,12 @@ struct SettingsView: View {
             Section(model.strings.connectedDeviceSectionTitle) {
                 controlRow(model.strings.useThisTokenLabel) {
                     Picker("", selection: Binding(
-                        get: { model.settings.selectedDevice?.stableID ?? "" },
+                        get: {
+                            let selectedID = model.settings.selectedDevice?.stableID ?? ""
+                            // Return "" if device not in connected list to avoid Picker warning
+                            if selectedID.isEmpty { return "" }
+                            return model.connectedDevices.contains(where: { $0.stableID == selectedID }) ? selectedID : ""
+                        },
                         set: {
                             if $0.isEmpty {
                                 model.clearSelectedDevice()
@@ -178,6 +184,7 @@ struct SettingsView: View {
             }
         }
         .padding(16)
+        }
         .onAppear {
             model.refreshConnectedDevices()
         }

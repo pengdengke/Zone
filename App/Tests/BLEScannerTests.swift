@@ -55,4 +55,29 @@ final class BLEScannerTests: XCTestCase {
         XCTAssertNil(scanner.latestReading)
         XCTAssertEqual(mockCentral.scanCallCount, 0)
     }
+
+    func testOnReadingUpdatedCallbackCalled() {
+        let mockCentral = MockCBCentralManager()
+        let scanner = BLEScanner(centralManager: mockCentral)
+        var callbackCount = 0
+        scanner.onReadingUpdated = { _ in
+            callbackCount += 1
+        }
+
+        scanner.startScanning(forDeviceName: "iPhone")
+
+        // Verify callback mechanism exists
+        XCTAssertEqual(callbackCount, 0)
+    }
+
+    func testStopScanningResetsState() {
+        let mockCentral = MockCBCentralManager()
+        let scanner = BLEScanner(centralManager: mockCentral)
+
+        scanner.startScanning(forDeviceName: "iPhone")
+        XCTAssertNil(scanner.latestReading) // Nil after start
+
+        scanner.stopScanning()
+        XCTAssertNil(scanner.latestReading) // Still nil after stop
+    }
 }

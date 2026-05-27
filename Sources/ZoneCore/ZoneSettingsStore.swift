@@ -1,5 +1,6 @@
 import Foundation
 
+// UserDefaults is thread-safe, so @unchecked Sendable is safe here.
 public final class ZoneSettingsStore: @unchecked Sendable {
     private let defaults: UserDefaults
     private let key = "zone.settings"
